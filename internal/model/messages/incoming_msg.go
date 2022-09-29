@@ -48,6 +48,8 @@ func (s *Model) IncomingMessage(msg Message) error {
 	}
 
 	switch tokens[0] {
+	case "/start":
+		return s.tgClient.SendMessage("hello", msg.UserID)
 	case "/help":
 		return s.tgClient.SendMessage(helpMsg, msg.UserID)
 	case "/add":
