@@ -1,10 +1,12 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -21,8 +23,10 @@ type Storage interface {
 }
 
 type MessageHandlerService struct {
-	tgClient MessageSender
-	storage  Storage
+	tgClient                 MessageSender
+	storage                  Storage
+	currentCurrencyType      model.CurrencyType
+	currentCurrencyTypeMutex sync.RWMutex
 }
 
 var helpMsg = `
@@ -30,6 +34,7 @@ var helpMsg = `
 /add [category] [sum] - add spending, template
 /categories - show all categories
 /report [type] - show report. type: w - week, m - month, y - year
+/currency [type] - change currency. type: 0 - USD, 1 - CNY, 2 - EUR, 3 - RUB
 `
 
 var categoriesMsg = `
@@ -52,59 +57,99 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
 	if len(tokens) == 0 {
 		return nil
 	}
+	resp := ""
 
 	switch tokens[0] {
 	case "/start":
-		return s.tgClient.SendMessage("hello", msg.UserID)
+		resp = handleStart()
 	case "/help":
-		return s.tgClient.SendMessage(helpMsg, msg.UserID)
+		resp = handleHelp()
 	case "/add":
-		resp := ""
-		if len(tokens) == 4 {
-			catStr := tokens[1]
-			sumStr := tokens[2]
-			dtStr := tokens[3]
-			if cat, err := strconv.Atoi(catStr); err != nil {
-				resp = "category must be a number"
-			} else if sum, err := decimal.NewFromString(sumStr); err != nil {
-				resp = "sum  must be a number"
-			} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
-				resp = "wrong date format"
-			} else if cat > int(model.Other) || cat < 0 {
-				resp = "wrong category"
-			} else {
-				s.storage.Save(model.NewSpending(sum, model.Category(cat), dt))
-				resp = "added"
-			}
-		} else {
-			resp = "wrong format, must be: /add [category] [sum]"
-		}
-		return s.tgClient.SendMessage(resp, msg.UserID)
+		resp = handleF(tokens, 4, s.handleAdd)
 
 	case "/categories":
-		return s.tgClient.SendMessage(categoriesMsg, msg.UserID)
+		resp = handleCategories()
 
 	case "/report":
-		resp := ""
-		if len(tokens) == 2 {
-			switch tokens[1] {
-			case "w":
-				resp = formatStats(s.storage.GetStatsBy(model.Week))
-			case "m":
-				resp = formatStats(s.storage.GetStatsBy(model.Month))
-			case "y":
-				resp = formatStats(s.storage.GetStatsBy(model.Year))
-			default:
-				resp = "wrong type, must be one of w - week, m - month, y - year"
-			}
-		} else {
-			resp = "wrong format, must be: /report [type]"
-		}
+		resp = handleF(tokens, 2, s.handleReport)
 
-		return s.tgClient.SendMessage(resp, msg.UserID)
+	case "/currency":
+		resp = handleF(tokens, 2, s.handleCurrencyChange)
 
 	default:
-		return s.tgClient.SendMessage("не знаю эту команду", msg.UserID)
+		resp = "не знаю эту команду"
+	}
+	return s.tgClient.SendMessage(resp, msg.UserID)
+}
+
+var errWrongFormat = errors.New("wrong format")
+
+func handleF(strs []string, count int, handler func([]string) (string, error)) string {
+	if count != len(strs) {
+		return errWrongFormat.Error()
+	}
+
+	if r, err := handler(strs); err != nil {
+		return err.Error()
+	} else {
+		return r
+	}
+}
+
+func handleStart() string {
+	return "hello"
+}
+
+func handleHelp() string {
+	return helpMsg
+}
+
+func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
+	catStr := tokens[1]
+	sumStr := tokens[2]
+	dtStr := tokens[3]
+
+	if cat, err := strconv.Atoi(catStr); err != nil {
+		return "", errors.New("category must be a number")
+	} else if sum, err := decimal.NewFromString(sumStr); err != nil {
+		return "", errors.New("sum  must be a number")
+	} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
+		return "", errors.New("wrong date format")
+	} else if cat > int(model.Other) || cat < 0 {
+		return "", errors.New("wrong category")
+	} else {
+		s.storage.Save(model.NewSpending(sum, model.Category(cat), dt))
+		return "added", nil
+	}
+}
+
+func handleCategories() string {
+	return categoriesMsg
+}
+
+func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
+	switch strs[1] {
+	case "w":
+		return formatStats(s.storage.GetStatsBy(model.Week)), nil
+	case "m":
+		return formatStats(s.storage.GetStatsBy(model.Month)), nil
+	case "y":
+		return formatStats(s.storage.GetStatsBy(model.Year)), nil
+	default:
+		return "", errWrongFormat
+	}
+}
+
+func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, error) {
+	if i, err := strconv.Atoi(strs[1]); err != nil {
+		return "", errWrongFormat
+	} else if cur, err := model.ParseCurrencyType(i); err != nil {
+		return "", err
+	} else {
+		s.currentCurrencyTypeMutex.Lock()
+		s.currentCurrencyType = cur
+		s.currentCurrencyTypeMutex.Unlock()
+		return "successfully changed", nil
 	}
 }
 

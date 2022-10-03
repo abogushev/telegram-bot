@@ -47,7 +47,7 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	sender := mocks.NewMockMessageSender(ctrl)
-	sender.EXPECT().SendMessage("wrong format, must be: /add [category] [sum]", int64(123))
+	sender.EXPECT().SendMessage("wrong format", int64(123))
 	storage := mocks.NewMockStorage(ctrl)
 	handlerService := NewMessageHandlerService(sender, storage)
 
@@ -123,7 +123,7 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func Test_OnAdd_shouldSaveSuccessful(t *testing.T) {
+func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	sender := mocks.NewMockMessageSender(ctrl)
@@ -141,7 +141,7 @@ func Test_OnAdd_shouldSaveSuccessful(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func Test_OnAdd_shouldReportSuccessful(t *testing.T) {
+func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	response := "from: 01-01-2000, to: 07-01-2000\nfood - 1\nother - 2\n"
 	sender := mocks.NewMockMessageSender(ctrl)
