@@ -7,19 +7,19 @@ import (
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
-type InMemoryStorage struct {
+type inMemorySpendingStorage struct {
 	data map[model.Category][]*model.Spending
 }
 
-func NewInMemoryStorage() *InMemoryStorage {
-	return &InMemoryStorage{make(map[model.Category][]*model.Spending)}
+func NewInMemorySpendingStorage() *inMemorySpendingStorage {
+	return &inMemorySpendingStorage{make(map[model.Category][]*model.Spending)}
 }
 
-func (s *InMemoryStorage) Save(spending *model.Spending) {
+func (s *inMemorySpendingStorage) Save(spending *model.Spending) {
 	s.data[spending.Category] = append(s.data[spending.Category], spending)
 }
 
-func (s *InMemoryStorage) GetStatsBy(rt model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal) {
+func (s *inMemorySpendingStorage) GetStatsBy(rt model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal) {
 	endAt := time.Now()
 	var startAt time.Time
 	switch rt {
@@ -33,7 +33,7 @@ func (s *InMemoryStorage) GetStatsBy(rt model.ReportType) (time.Time, time.Time,
 	return startAt, endAt, s.groupBy(startAt, endAt)
 }
 
-func (s *InMemoryStorage) groupBy(startAt time.Time, endAt time.Time) map[model.Category]decimal.Decimal {
+func (s *inMemorySpendingStorage) groupBy(startAt time.Time, endAt time.Time) map[model.Category]decimal.Decimal {
 	result := make(map[model.Category]decimal.Decimal)
 	for cat, ms := range s.data {
 		for i := 0; i < len(ms); i++ {

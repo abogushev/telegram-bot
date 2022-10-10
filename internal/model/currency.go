@@ -5,18 +5,34 @@ import "errors"
 type CurrencyType int
 
 const (
-	USD CurrencyType = iota
+	Undefined CurrencyType = iota
+	USD
 	CNY
 	EUR
 	RUB
-	Undefined
 )
 
+func (c CurrencyType) String() string {
+	switch c {
+	case USD:
+		return "$"
+	case CNY:
+		return "¥"
+	case EUR:
+		return "€"
+	case RUB:
+		return "₽"
+	default:
+		return "?"
+	}
+}
+
+var AllNonBaseCurrenciesType = []CurrencyType{USD, CNY, EUR}
 var ErrWrongCurrencyType = errors.New("wrong currency type")
 
 func ParseCurrencyType(t int) (CurrencyType, error) {
-	switch CurrencyType(t) {
-	case USD | CNY | EUR | RUB:
+	switch {
+	case t >= 0 && t < int(RUB):
 		return CurrencyType(t), nil
 	default:
 		return Undefined, ErrWrongCurrencyType

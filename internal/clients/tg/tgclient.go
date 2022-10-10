@@ -1,7 +1,9 @@
 package tg
 
 import (
+	"context"
 	"log"
+	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
@@ -9,22 +11,20 @@ import (
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
 )
 
-type TokenGetter interface {
-	Token() string
-}
-
 type Client struct {
-	client *tgbotapi.BotAPI
+	client  *tgbotapi.BotAPI
+	runOnce sync.Once
 }
 
-func New(tokenGetter TokenGetter) (*Client, error) {
-	client, err := tgbotapi.NewBotAPI(tokenGetter.Token())
+func New(token string) (*Client, error) {
+	client, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, errors.Wrap(err, "NewBotAPI")
 	}
 
 	return &Client{
-		client: client,
+		client:  client,
+		runOnce: sync.Once{},
 	}, nil
 }
 
@@ -36,25 +36,34 @@ func (c *Client) SendMessage(text string, userID int64) error {
 	return nil
 }
 
-func (c *Client) ListenUpdates(handler *services.MessageHandlerService) {
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+func (c *Client) ListenUpdates(handler *services.MessageHandlerService, ctx context.Context) {
+	c.runOnce.Do(func() {
+		u := tgbotapi.NewUpdate(0)
+		u.Timeout = 60
 
-	updates := c.client.GetUpdatesChan(u)
+		updates := c.client.GetUpdatesChan(u)
 
-	log.Println("listening for messages")
+		log.Println("listening for messages")
 
-	for update := range updates {
-		if update.Message != nil { // If we got a message
-			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		for {
+			select {
+			case <-ctx.Done():
+				c.client.StopReceivingUpdates()
+				log.Println("stop listening messages")
+				return
+			case update := <-updates:
+				if update.Message != nil { // If we got a message
+					log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-			err := handler.HandleMsg(&model.Message{
-				Text:   update.Message.Text,
-				UserID: update.Message.From.ID,
-			})
-			if err != nil {
-				log.Println("error processing message:", err)
+					err := handler.HandleMsg(&model.Message{
+						Text:   update.Message.Text,
+						UserID: update.Message.From.ID,
+					})
+					if err != nil {
+						log.Println("error processing message:", err)
+					}
+				}
 			}
 		}
-	}
+	})
 }
