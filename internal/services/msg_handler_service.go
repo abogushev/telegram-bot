@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -17,16 +16,15 @@ type MessageSender interface {
 	SendMessage(text string, userID int64) error
 }
 
-type Storage interface {
-	Save(*model.Spending)
-	GetStatsBy(model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal)
+type SpendingService interface {
+	Save(*model.Spending) error
+	GetStatsBy(model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal, model.CurrencyType, error)
+	UpdateCurrentType(model.CurrencyType)
 }
 
 type MessageHandlerService struct {
-	tgClient                 MessageSender
-	storage                  Storage
-	currentCurrencyType      model.CurrencyType
-	currentCurrencyTypeMutex sync.RWMutex
+	tgClient        MessageSender
+	spendingService SpendingService
 }
 
 var helpMsg = `
@@ -34,7 +32,7 @@ var helpMsg = `
 /add [category] [sum] - add spending, template
 /categories - show all categories
 /report [type] - show report. type: w - week, m - month, y - year
-/currency [type] - change currency. type: 0 - USD, 1 - CNY, 2 - EUR, 3 - RUB
+/currency [type] - change currency. type: 1 - USD, 2 - CNY, 3 - EUR, 4 - RUB
 `
 
 var categoriesMsg = `
@@ -45,10 +43,10 @@ categories:
 
 var dtTemplate = "02-01-2006"
 
-func NewMessageHandlerService(tgClient MessageSender, storage Storage) *MessageHandlerService {
+func NewMessageHandlerService(tgClient MessageSender, spendingService SpendingService) *MessageHandlerService {
 	return &MessageHandlerService{
-		tgClient: tgClient,
-		storage:  storage,
+		tgClient:        tgClient,
+		spendingService: spendingService,
 	}
 }
 
@@ -117,10 +115,10 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 		return "", errors.New("wrong date format")
 	} else if cat > int(model.Other) || cat < 0 {
 		return "", errors.New("wrong category")
-	} else {
-		s.storage.Save(model.NewSpending(sum, model.Category(cat), dt))
-		return "added", nil
+	} else if err := s.spendingService.Save(model.NewSpending(sum, model.Category(cat), dt)); err != nil {
+		return "", err
 	}
+	return "added", nil
 }
 
 func handleCategories() string {
@@ -128,15 +126,23 @@ func handleCategories() string {
 }
 
 func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
+	var m model.ReportType
+
 	switch strs[1] {
 	case "w":
-		return formatStats(s.storage.GetStatsBy(model.Week)), nil
+		m = model.Week
 	case "m":
-		return formatStats(s.storage.GetStatsBy(model.Month)), nil
+		m = model.Month
 	case "y":
-		return formatStats(s.storage.GetStatsBy(model.Year)), nil
+		m = model.Year
 	default:
 		return "", errWrongFormat
+	}
+
+	if s, e, data, c, err := s.spendingService.GetStatsBy(m); err != nil {
+		return "", err
+	} else {
+		return formatStats(s, e, data, c), nil
 	}
 }
 
@@ -146,14 +152,12 @@ func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, err
 	} else if cur, err := model.ParseCurrencyType(i); err != nil {
 		return "", err
 	} else {
-		s.currentCurrencyTypeMutex.Lock()
-		s.currentCurrencyType = cur
-		s.currentCurrencyTypeMutex.Unlock()
+		s.spendingService.UpdateCurrentType(cur)
 		return "successfully changed", nil
 	}
 }
 
-func formatStats(start time.Time, end time.Time, r map[model.Category]decimal.Decimal) string {
+func formatStats(start time.Time, end time.Time, r map[model.Category]decimal.Decimal, currency model.CurrencyType) string {
 	if len(r) != 0 {
 		result := fmt.Sprintf("from: %v, to: %v\n", start.Format(dtTemplate), end.Format(dtTemplate))
 		cats := make([]model.Category, 0, len(r))
@@ -162,7 +166,7 @@ func formatStats(start time.Time, end time.Time, r map[model.Category]decimal.De
 		}
 		sort.Slice(cats, func(i, j int) bool { return int(cats[i]) < int(cats[j]) })
 		for i := 0; i < len(cats); i++ {
-			result += fmt.Sprintf("%v - %v\n", cats[i], r[cats[i]])
+			result += fmt.Sprintf("%v - %v %v\n", cats[i], r[cats[i]].Round(2), currency)
 		}
 		return result
 	}

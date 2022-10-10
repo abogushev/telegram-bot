@@ -50,53 +50,69 @@ func (mr *MockMessageSenderMockRecorder) SendMessage(text, userID interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockMessageSender)(nil).SendMessage), text, userID)
 }
 
-// MockStorage is a mock of Storage interface.
-type MockStorage struct {
+// MockSpendingService is a mock of SpendingService interface.
+type MockSpendingService struct {
 	ctrl     *gomock.Controller
-	recorder *MockStorageMockRecorder
+	recorder *MockSpendingServiceMockRecorder
 }
 
-// MockStorageMockRecorder is the mock recorder for MockStorage.
-type MockStorageMockRecorder struct {
-	mock *MockStorage
+// MockSpendingServiceMockRecorder is the mock recorder for MockSpendingService.
+type MockSpendingServiceMockRecorder struct {
+	mock *MockSpendingService
 }
 
-// NewMockStorage creates a new mock instance.
-func NewMockStorage(ctrl *gomock.Controller) *MockStorage {
-	mock := &MockStorage{ctrl: ctrl}
-	mock.recorder = &MockStorageMockRecorder{mock}
+// NewMockSpendingService creates a new mock instance.
+func NewMockSpendingService(ctrl *gomock.Controller) *MockSpendingService {
+	mock := &MockSpendingService{ctrl: ctrl}
+	mock.recorder = &MockSpendingServiceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
+func (m *MockSpendingService) EXPECT() *MockSpendingServiceMockRecorder {
 	return m.recorder
 }
 
 // GetStatsBy mocks base method.
-func (m *MockStorage) GetStatsBy(arg0 model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal) {
+func (m *MockSpendingService) GetStatsBy(arg0 model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal, model.CurrencyType, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStatsBy", arg0)
 	ret0, _ := ret[0].(time.Time)
 	ret1, _ := ret[1].(time.Time)
 	ret2, _ := ret[2].(map[model.Category]decimal.Decimal)
-	return ret0, ret1, ret2
+	ret3, _ := ret[3].(model.CurrencyType)
+	ret4, _ := ret[4].(error)
+	return ret0, ret1, ret2, ret3, ret4
 }
 
 // GetStatsBy indicates an expected call of GetStatsBy.
-func (mr *MockStorageMockRecorder) GetStatsBy(arg0 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockStorage)(nil).GetStatsBy), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0)
 }
 
 // Save mocks base method.
-func (m *MockStorage) Save(arg0 *model.Spending) {
+func (m *MockSpendingService) Save(arg0 *model.Spending) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Save", arg0)
+	ret := m.ctrl.Call(m, "Save", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockStorageMockRecorder) Save(arg0 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceMockRecorder) Save(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStorage)(nil).Save), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockSpendingService)(nil).Save), arg0)
+}
+
+// UpdateCurrentType mocks base method.
+func (m *MockSpendingService) UpdateCurrentType(arg0 model.CurrencyType) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UpdateCurrentType", arg0)
+}
+
+// UpdateCurrentType indicates an expected call of UpdateCurrentType.
+func (mr *MockSpendingServiceMockRecorder) UpdateCurrentType(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCurrentType", reflect.TypeOf((*MockSpendingService)(nil).UpdateCurrentType), arg0)
 }
