@@ -1,0 +1,11 @@
+{
+    "configurations": [
+      {
+        "type": "command",
+        "name": "make all",
+        "program": "/usr/bin/make",
+        "args": ["all"],
+      },
+
+    ]
+}

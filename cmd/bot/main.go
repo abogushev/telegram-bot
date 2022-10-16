@@ -10,7 +10,8 @@ import (
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
-	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase/migrations"
 )
 
 func main() {
@@ -27,8 +28,18 @@ func main() {
 		log.Fatal("tg client init failed:", err)
 	}
 
-	spendigStorage := storage.NewInMemorySpendingStorage()
-	currencyStorage := storage.NewCurrencyStorage()
+	//	spendigStorage := storage.NewInMemorySpendingStorage()
+	//	currencyStorage := storage.NewCurrencyStorage()
+	db, err := pgdatabase.InitDB(ctx, "user=postgres password=postgres dbname=postgres sslmode=disable")
+	migrations.Up("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable", "internal/storage/pgdatabase/migrations")
+
+	if err != nil {
+		log.Fatal("db init failed:", err)
+	}
+
+	spendigStorage := pgdatabase.NewSpendingStorage(ctx, db)
+	currencyStorage := pgdatabase.NewCurrencyStorage(ctx, db)
+
 	spendingService := services.NewSpendingService(spendigStorage, currencyStorage)
 	currencyService := services.NewCurrencyService()
 

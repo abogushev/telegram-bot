@@ -1,6 +1,9 @@
 package model
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 type CurrencyType int
 
@@ -36,5 +39,35 @@ func ParseCurrencyType(t int) (CurrencyType, error) {
 		return CurrencyType(t), nil
 	default:
 		return Undefined, ErrWrongCurrencyType
+	}
+}
+
+func StrToCurrencyType(s string) (CurrencyType, error) {
+	switch strings.ToLower(s) {
+	case "usd":
+		return USD, nil
+	case "eur":
+		return EUR, nil
+	case "cny":
+		return CNY, nil
+	case "rub":
+		return RUB, nil
+	default:
+		return Undefined, ErrWrongCurrencyType
+	}
+}
+
+func CurrencyTypeToStr(c CurrencyType) (string, error) {
+	switch c {
+	case USD:
+		return "usd", nil
+	case CNY:
+		return "cny", nil
+	case EUR:
+		return "eur", nil
+	case RUB:
+		return "rub", nil
+	default:
+		return "", ErrWrongCurrencyType
 	}
 }

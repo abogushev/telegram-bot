@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -143,16 +144,17 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 
 func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	response := "from: 01-01-2000, to: 07-01-2000\nfood - 1 ₽\nother - 2 ₽\n"
+	end := time.Now().Truncate(24 * time.Hour)
+	start := end.AddDate(0, 0, -7)
+	response := fmt.Sprintf("from: %v, to: %v\nother - 2 ₽\nfood - 1 ₽\n", start.Format("02-01-2006"), end.Format("02-01-2006"))
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage(response, int64(123))
 	storage := mocks.NewMockSpendingService(ctrl)
-	start, _ := time.Parse("02-01-2006", "01-01-2000")
-	end, _ := time.Parse("02-01-2006", "07-01-2000")
+
 	reportData := make(map[model.Category]decimal.Decimal)
 	reportData[model.Food] = decimal.NewFromInt(1)
 	reportData[model.Other] = decimal.NewFromInt(2)
-	storage.EXPECT().GetStatsBy(model.Week).Return(start, end, reportData, model.RUB, nil)
+	storage.EXPECT().GetStatsBy(start, end).Return(reportData, model.RUB, nil)
 	handlerService := NewMessageHandlerService(sender, storage)
 
 	err := handlerService.HandleMsg(&model.Message{

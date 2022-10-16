@@ -10,8 +10,8 @@ type Category int
 type ReportType int
 
 const (
-	Food Category = iota
-	Other
+	Other Category = iota
+	Food
 )
 
 const (
@@ -21,9 +21,9 @@ const (
 )
 
 type Spending struct {
-	Value    decimal.Decimal
-	Category Category
-	Date     time.Time
+	Value    decimal.Decimal `db:"value"`
+	Category Category        `db:"category"`
+	Date     time.Time       `db:"date"`
 }
 
 func NewSpending(val decimal.Decimal, cat Category, dt time.Time) *Spending {
@@ -39,4 +39,13 @@ func (c Category) String() string {
 		r = "other"
 	}
 	return r
+}
+
+func StrToCategory(str string) Category {
+	switch str {
+	case "food":
+		return Food
+	default:
+		return Other
+	}
 }

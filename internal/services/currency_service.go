@@ -24,7 +24,7 @@ func NewCurrencyService() *CurrencyService {
 }
 
 type currenciesStorage interface {
-	UpdateCurrencies(map[model.CurrencyType]decimal.Decimal)
+	UpdateCurrencies(map[model.CurrencyType]decimal.Decimal) error
 }
 
 func (s *CurrencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateInterval time.Duration, currenciesStorage currenciesStorage) {
@@ -79,8 +79,7 @@ func updateCurrencies(ctx context.Context, currenciesStorage currenciesStorage) 
 		}
 	}
 
-	currenciesStorage.UpdateCurrencies(currencies)
-	return nil
+	return currenciesStorage.UpdateCurrencies(currencies)
 }
 
 type dataResponse struct {

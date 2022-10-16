@@ -8,13 +8,13 @@ import (
 )
 
 type spendingStorage interface {
-	Save(*model.Spending)
-	GetStatsBy(model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal)
+	Save(*model.Spending) error
+	GetStatsBy(time.Time, time.Time) (map[model.Category]decimal.Decimal, error)
 }
 
 type currencyStorage interface {
-	UpdateCurrentType(model.CurrencyType)
-	GetCurrencyType() model.CurrencyType
+	UpdateCurrentType(model.CurrencyType) error
+	GetCurrencyType() (model.CurrencyType, error)
 	GetCurrencyRatioToRUB(c model.CurrencyType) (decimal.Decimal, error)
 }
 
@@ -27,8 +27,8 @@ func NewSpendingService(spendingStorage spendingStorage, currencyStorage currenc
 	return &spendingService{spendingStorage, currencyStorage}
 }
 
-func (s *spendingService) UpdateCurrentType(t model.CurrencyType) {
-	s.currencyStorage.UpdateCurrentType(t)
+func (s *spendingService) UpdateCurrentType(t model.CurrencyType) error {
+	return s.currencyStorage.UpdateCurrentType(t)
 }
 
 func (s *spendingService) Save(spending *model.Spending) error {
@@ -36,13 +36,15 @@ func (s *spendingService) Save(spending *model.Spending) error {
 		return err
 	} else {
 		spending.Value = cnvV
-		s.spendingStorage.Save(spending)
-		return nil
+		return s.spendingStorage.Save(spending)
 	}
 }
 
 func (s *spendingService) cnvrtF(value decimal.Decimal, cnv func(ratio, v decimal.Decimal) decimal.Decimal) (decimal.Decimal, error) {
-	ct := s.currencyStorage.GetCurrencyType()
+	ct, err := s.currencyStorage.GetCurrencyType()
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
 	if ct == model.RUB {
 		return value, nil
 	}
@@ -61,19 +63,25 @@ func (s *spendingService) ConvertRUBToCurrentCurrencyType(value decimal.Decimal)
 	return s.cnvrtF(value, func(ratio, v decimal.Decimal) decimal.Decimal { return ratio.Mul(value) })
 }
 
-func (s *spendingService) GetStatsBy(t model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal, model.CurrencyType, error) {
-	start, end, data := s.spendingStorage.GetStatsBy(t)
-	ct := s.currencyStorage.GetCurrencyType()
+func (s *spendingService) GetStatsBy(start, end time.Time) (map[model.Category]decimal.Decimal, model.CurrencyType, error) {
+	data, err := s.spendingStorage.GetStatsBy(start, end)
+	if err != nil {
+		return nil, model.Undefined, err
+	}
+	ct, err := s.currencyStorage.GetCurrencyType()
+	if err != nil {
+		return nil, model.Undefined, err
+	}
 	if ct == model.RUB {
-		return start, end, data, ct, nil
+		return data, ct, nil
 	}
 	if ratio, err := s.currencyStorage.GetCurrencyRatioToRUB(ct); err != nil {
-		return time.Time{}, time.Time{}, nil, ct, err
+		return nil, ct, err
 	} else {
 		rs := make(map[model.Category]decimal.Decimal)
 		for k, v := range data {
 			rs[k] = ratio.Mul(v)
 		}
-		return start, end, rs, ct, nil
+		return rs, ct, nil
 	}
 }

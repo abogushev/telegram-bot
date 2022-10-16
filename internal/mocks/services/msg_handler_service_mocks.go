@@ -74,21 +74,19 @@ func (m *MockSpendingService) EXPECT() *MockSpendingServiceMockRecorder {
 }
 
 // GetStatsBy mocks base method.
-func (m *MockSpendingService) GetStatsBy(arg0 model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal, model.CurrencyType, error) {
+func (m *MockSpendingService) GetStatsBy(arg0, arg1 time.Time) (map[model.Category]decimal.Decimal, model.CurrencyType, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStatsBy", arg0)
-	ret0, _ := ret[0].(time.Time)
-	ret1, _ := ret[1].(time.Time)
-	ret2, _ := ret[2].(map[model.Category]decimal.Decimal)
-	ret3, _ := ret[3].(model.CurrencyType)
-	ret4, _ := ret[4].(error)
-	return ret0, ret1, ret2, ret3, ret4
+	ret := m.ctrl.Call(m, "GetStatsBy", arg0, arg1)
+	ret0, _ := ret[0].(map[model.Category]decimal.Decimal)
+	ret1, _ := ret[1].(model.CurrencyType)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetStatsBy indicates an expected call of GetStatsBy.
-func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0, arg1)
 }
 
 // Save mocks base method.
@@ -106,9 +104,11 @@ func (mr *MockSpendingServiceMockRecorder) Save(arg0 interface{}) *gomock.Call {
 }
 
 // UpdateCurrentType mocks base method.
-func (m *MockSpendingService) UpdateCurrentType(arg0 model.CurrencyType) {
+func (m *MockSpendingService) UpdateCurrentType(arg0 model.CurrencyType) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateCurrentType", arg0)
+	ret := m.ctrl.Call(m, "UpdateCurrentType", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // UpdateCurrentType indicates an expected call of UpdateCurrentType.

@@ -18,8 +18,8 @@ type MessageSender interface {
 
 type SpendingService interface {
 	Save(*model.Spending) error
-	GetStatsBy(model.ReportType) (time.Time, time.Time, map[model.Category]decimal.Decimal, model.CurrencyType, error)
-	UpdateCurrentType(model.CurrencyType)
+	GetStatsBy(time.Time, time.Time) (map[model.Category]decimal.Decimal, model.CurrencyType, error)
+	UpdateCurrentType(model.CurrencyType) error
 }
 
 type MessageHandlerService struct {
@@ -113,7 +113,7 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 		return "", errors.New("sum  must be a number")
 	} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
 		return "", errors.New("wrong date format")
-	} else if cat > int(model.Other) || cat < 0 {
+	} else if cat > int(model.Food) || cat < int(model.Other) {
 		return "", errors.New("wrong category")
 	} else if err := s.spendingService.Save(model.NewSpending(sum, model.Category(cat), dt)); err != nil {
 		return "", err
@@ -126,23 +126,24 @@ func handleCategories() string {
 }
 
 func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
-	var m model.ReportType
+	endAt := time.Now().Truncate(24 * time.Hour)
+	var startAt time.Time
 
 	switch strs[1] {
 	case "w":
-		m = model.Week
+		startAt = endAt.AddDate(0, 0, -7)
 	case "m":
-		m = model.Month
+		startAt = endAt.AddDate(0, -1, 0)
 	case "y":
-		m = model.Year
+		startAt = endAt.AddDate(-1, 0, 0)
 	default:
 		return "", errWrongFormat
 	}
 
-	if s, e, data, c, err := s.spendingService.GetStatsBy(m); err != nil {
+	if data, c, err := s.spendingService.GetStatsBy(startAt, endAt); err != nil {
 		return "", err
 	} else {
-		return formatStats(s, e, data, c), nil
+		return formatStats(startAt, endAt, data, c), nil
 	}
 }
 
@@ -151,10 +152,10 @@ func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, err
 		return "", errWrongFormat
 	} else if cur, err := model.ParseCurrencyType(i); err != nil {
 		return "", err
-	} else {
-		s.spendingService.UpdateCurrentType(cur)
-		return "successfully changed", nil
+	} else if err := s.spendingService.UpdateCurrentType(cur); err != nil {
+		return "failed to update", err
 	}
+	return "successfully changed", nil
 }
 
 func formatStats(start time.Time, end time.Time, r map[model.Category]decimal.Decimal, currency model.CurrencyType) string {
