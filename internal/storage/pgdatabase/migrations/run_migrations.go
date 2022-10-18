@@ -19,10 +19,10 @@ func run(url, path string, f func(m *migrate.Migrate) error) {
 	}
 }
 
-func Up(url,path string) {
+func Up(url, path string) {
 	run(url, path, func(m *migrate.Migrate) error { return m.Up() })
 }
 
-func Down(url,path string) {
+func Down(url, path string) {
 	run(url, path, func(m *migrate.Migrate) error { return m.Down() })
 }

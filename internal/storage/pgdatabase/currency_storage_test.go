@@ -2,7 +2,6 @@ package pgdatabase
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -78,84 +77,64 @@ func checkIsExist(t *testing.T, q string, expectedCount int) {
 	assert.Equal(t, expectedCount, r)
 }
 
-func Test_GetCurrencyType(t *testing.T) {
+func Test_GetCurrency(t *testing.T) {
 
 	BeforeTest()
 	tests := []struct {
 		name     string
 		prepareF func()
 		err      error
-		ctype    model.CurrencyType
+		ctype    model.Currency
 	}{
 		{
-			"get successfully",
-			func() {},
-			nil,
-			model.RUB,
-		},
-		{
-			"wrong persisted currency: cant convert",
-			func() {
-				DB.MustExec("insert into currencies(code, ratio) values('unexpected', 1)")
-				DB.MustExec("update state set current_currency_code = 'unexpected'")
-			},
-			model.ErrWrongCurrencyType,
-			model.Undefined,
-		},
-		{
-			"empty data",
-			func() {
-				DB.MustExec("truncate table state")
-			},
-			sql.ErrNoRows,
-			model.Undefined,
+			name:     "get successfully",
+			prepareF: func() {},
+			ctype:    model.Currency{Code: "rub", Ratio: decimal.NewFromInt(1)},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			BeforeTest()
 			tt.prepareF()
-			ctype, err := storage.GetCurrencyType()
+			ctype, err := storage.GetCurrentCurrency()
 			assert.ErrorIs(t, err, tt.err)
 			assert.Equal(t, ctype, tt.ctype)
 		})
 	}
 }
 
-func Test_dbCurrencyStorage_UpdateCurrentType(t *testing.T) {
+func Test_dbCurrencyStorage_UpdateCurrentCurrency(t *testing.T) {
 	tests := []struct {
 		name     string
-		err      error
-		data     model.CurrencyType
+		code     string
 		prepareF func()
-		checkF   func()
+		checkF   func(err error)
 	}{
 		{
 			"updated successfully",
-			nil,
-			model.EUR,
+			"eur",
 			func() {
 				DB.MustExec("insert into currencies(code, ratio) values('eur', 1)")
 			},
-			func() {
+			func(err error) {
 				checkIsExist(t, "select count(1) from state where current_currency_code = 'eur'", 1)
 			},
 		},
 		{
-			"wrong currency type",
-			model.ErrWrongCurrencyType,
-			model.CurrencyType(99),
-			func() {},
-			func() {},
+			name: "wrong currency type",
+
+			code:     "undefined",
+			prepareF: func() {},
+			checkF: func(err error) {
+				assert.NotNil(t, err)
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			BeforeTest()
 			tt.prepareF()
-			err := storage.UpdateCurrentType(tt.data)
-			assert.ErrorIs(t, err, tt.err)
-			tt.checkF()
+			tt.checkF(storage.UpdateCurrentCurrency(tt.code))
 		})
 	}
 }
@@ -163,33 +142,22 @@ func Test_dbCurrencyStorage_UpdateCurrentType(t *testing.T) {
 func Test_UpdateCurrencies(t *testing.T) {
 	tests := []struct {
 		name     string
-		data     map[model.CurrencyType]decimal.Decimal
+		data     []model.Currency
 		prepareF func()
 		checkF   func(err error)
 	}{
 		{
-			"upinsert successfully",
-			map[model.CurrencyType]decimal.Decimal{
-				model.CNY: decimal.NewFromInt(1),
-				model.EUR: decimal.NewFromInt(2),
+			name: "upinsert successfully",
+			data: []model.Currency{
+				{Code: "cny", Ratio: decimal.NewFromInt(1)},
+				{Code: "eur", Ratio: decimal.NewFromInt(2)},
 			},
-			func() {
+			prepareF: func() {
 				DB.MustExec("insert into currencies values('cny', 0) ")
 			},
-			func(err error) {
+			checkF: func(err error) {
 				assert.ErrorIs(t, err, nil)
-				checkIsExist(t, "select count(1) from currencies where code = 'cny' or code = 'eur'", 2)
-			},
-		},
-		{
-			"failed on wrong type",
-			map[model.CurrencyType]decimal.Decimal{
-				model.CNY:              decimal.NewFromInt(1),
-				model.CurrencyType(99): decimal.NewFromInt(2),
-			},
-			func() {},
-			func(err error) {
-				assert.ErrorContains(t, err, "wrong сurrency type: 99")
+				checkIsExist(t, "select count(1) from currencies where (code = 'cny' and ratio = 1) or (code = 'eur' and ratio = 2)", 2)
 			},
 		},
 	}

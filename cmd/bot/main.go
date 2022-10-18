@@ -40,12 +40,21 @@ func main() {
 	spendigStorage := pgdatabase.NewSpendingStorage(ctx, db)
 	currencyStorage := pgdatabase.NewCurrencyStorage(ctx, db)
 
-	spendingService := services.NewSpendingService(spendigStorage, currencyStorage)
-	currencyService := services.NewCurrencyService()
+	currencyService, err := services.NewCurrencyService(currencyStorage)
+	if err != nil {
+		log.Fatal("currencyService init failed", err)
+	}
+	currencyService.RunUpdateCurrenciesDaemon(ctx, cfg.UpdateCurrenciesInterval)
 
-	currencyService.RunUpdateCurrenciesDaemon(ctx, cfg.UpdateCurrenciesInterval, currencyStorage)
+	spendingService := services.NewSpendingService(spendigStorage, currencyService)
 
-	handler := services.NewMessageHandlerService(tgClient, spendingService)
+	categoryStorage := pgdatabase.NewCategoryStorage(ctx, db)
+	categoryService, err := services.NewCategoryService(categoryStorage)
+	if err != nil {
+		log.Fatal("categoryService init failed", err)
+	}
+
+	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService)
 
 	go tgClient.ListenUpdates(handler, ctx)
 

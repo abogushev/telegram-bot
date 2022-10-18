@@ -7,81 +7,38 @@ import (
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
-type spendingStorage interface {
-	Save(*model.Spending) error
-	GetStatsBy(time.Time, time.Time) (map[model.Category]decimal.Decimal, error)
+type spendingStorageI interface {
+	Save(model.Spending) error
+	GetStatsBy(time.Time, time.Time) (map[string]decimal.Decimal, error)
 }
 
-type currencyStorage interface {
-	UpdateCurrentType(model.CurrencyType) error
-	GetCurrencyType() (model.CurrencyType, error)
-	GetCurrencyRatioToRUB(c model.CurrencyType) (decimal.Decimal, error)
+type currencyServiceI interface {
+	GetCurrentCurrency() model.Currency
 }
 
 type spendingService struct {
-	spendingStorage spendingStorage
-	currencyStorage currencyStorage
+	spendingStorage spendingStorageI
+	currencyService currencyServiceI
 }
 
-func NewSpendingService(spendingStorage spendingStorage, currencyStorage currencyStorage) *spendingService {
-	return &spendingService{spendingStorage, currencyStorage}
+func NewSpendingService(spendingStorage spendingStorageI, currencyService currencyServiceI) *spendingService {
+	return &spendingService{spendingStorage, currencyService}
 }
 
-func (s *spendingService) UpdateCurrentType(t model.CurrencyType) error {
-	return s.currencyStorage.UpdateCurrentType(t)
+func (s *spendingService) Save(spending model.Spending) error {
+	spending.Value = spending.Value.Div(s.currencyService.GetCurrentCurrency().Ratio)
+	return s.spendingStorage.Save(spending)
 }
 
-func (s *spendingService) Save(spending *model.Spending) error {
-	if cnvV, err := s.ConvertFromCurrentCurrencyToRUB(spending.Value); err != nil {
-		return err
-	} else {
-		spending.Value = cnvV
-		return s.spendingStorage.Save(spending)
-	}
-}
-
-func (s *spendingService) cnvrtF(value decimal.Decimal, cnv func(ratio, v decimal.Decimal) decimal.Decimal) (decimal.Decimal, error) {
-	ct, err := s.currencyStorage.GetCurrencyType()
-	if err != nil {
-		return decimal.Decimal{}, err
-	}
-	if ct == model.RUB {
-		return value, nil
-	}
-	if ratio, err := s.currencyStorage.GetCurrencyRatioToRUB(ct); err != nil {
-		return decimal.Decimal{}, err
-	} else {
-		return cnv(ratio, value), nil
-	}
-}
-
-func (s *spendingService) ConvertFromCurrentCurrencyToRUB(value decimal.Decimal) (decimal.Decimal, error) {
-	return s.cnvrtF(value, func(ratio, v decimal.Decimal) decimal.Decimal { return value.Div(ratio) })
-}
-
-func (s *spendingService) ConvertRUBToCurrentCurrencyType(value decimal.Decimal) (decimal.Decimal, error) {
-	return s.cnvrtF(value, func(ratio, v decimal.Decimal) decimal.Decimal { return ratio.Mul(value) })
-}
-
-func (s *spendingService) GetStatsBy(start, end time.Time) (map[model.Category]decimal.Decimal, model.CurrencyType, error) {
+func (s *spendingService) GetStatsBy(start, end time.Time) (map[string]decimal.Decimal, string, error) {
 	data, err := s.spendingStorage.GetStatsBy(start, end)
 	if err != nil {
-		return nil, model.Undefined, err
+		return nil, "", err
 	}
-	ct, err := s.currencyStorage.GetCurrencyType()
-	if err != nil {
-		return nil, model.Undefined, err
+	rs := make(map[string]decimal.Decimal)
+	ct := s.currencyService.GetCurrentCurrency()
+	for k, v := range data {
+		rs[k] = ct.Ratio.Mul(v)
 	}
-	if ct == model.RUB {
-		return data, ct, nil
-	}
-	if ratio, err := s.currencyStorage.GetCurrencyRatioToRUB(ct); err != nil {
-		return nil, ct, err
-	} else {
-		rs := make(map[model.Category]decimal.Decimal)
-		for k, v := range data {
-			rs[k] = ratio.Mul(v)
-		}
-		return rs, ct, nil
-	}
+	return rs, ct.Code, nil
 }

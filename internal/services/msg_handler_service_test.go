@@ -15,8 +15,13 @@ import (
 func Test_OnStartCommand_ShouldAnswerWithIntroMessage(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sender := mocks.NewMockMessageSender(ctrl)
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	sender.EXPECT().SendMessage("hello", int64(123))
 
@@ -33,8 +38,12 @@ func Test_OnUnknownCommand_ShouldAnswerWithHelpMessage(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("не знаю эту команду", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "some text",
@@ -49,8 +58,12 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("wrong format", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 01-01-2000",
@@ -65,8 +78,13 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberCatValue(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("category must be a number", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add q 1 01-01-2000",
@@ -81,27 +99,16 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberSumValue(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("sum  must be a number", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 q 01-01-2000",
-		UserID: 123,
-	})
-
-	assert.NoError(t, err)
-}
-
-func Test_OnAdd_shouldAnswerErrOnBadCatValue(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	sender := mocks.NewMockMessageSender(ctrl)
-	sender.EXPECT().SendMessage("wrong category", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
-
-	err := handlerService.HandleMsg(&model.Message{
-		Text:   "/add 99 1 01-01-2000",
 		UserID: 123,
 	})
 
@@ -113,8 +120,13 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("wrong date format", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
-	handlerService := NewMessageHandlerService(sender, storage)
+
+	handlerService := NewMessageHandlerService(
+		sender,
+		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 99 1 qwe",
@@ -131,8 +143,13 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 	sender.EXPECT().SendMessage("added", int64(123))
 	storage := mocks.NewMockSpendingService(ctrl)
 	dt, _ := time.Parse("02-01-2006", "01-01-2000")
-	storage.EXPECT().Save(model.NewSpending(decimal.NewFromInt(1), model.Category(1), dt))
-	handlerService := NewMessageHandlerService(sender, storage)
+	storage.EXPECT().Save(model.NewSpending(decimal.NewFromInt(1), 1, dt))
+	handlerService := NewMessageHandlerService(
+		sender,
+		storage,
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 1 01-01-2000",
@@ -146,16 +163,21 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	end := time.Now().Truncate(24 * time.Hour)
 	start := end.AddDate(0, 0, -7)
-	response := fmt.Sprintf("from: %v, to: %v\nother - 2 ₽\nfood - 1 ₽\n", start.Format("02-01-2006"), end.Format("02-01-2006"))
+	response := fmt.Sprintf("from: %v, to: %v\nfood - 1 rub\nother - 2 rub\n", start.Format("02-01-2006"), end.Format("02-01-2006"))
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage(response, int64(123))
 	storage := mocks.NewMockSpendingService(ctrl)
 
-	reportData := make(map[model.Category]decimal.Decimal)
-	reportData[model.Food] = decimal.NewFromInt(1)
-	reportData[model.Other] = decimal.NewFromInt(2)
-	storage.EXPECT().GetStatsBy(start, end).Return(reportData, model.RUB, nil)
-	handlerService := NewMessageHandlerService(sender, storage)
+	reportData := make(map[string]decimal.Decimal)
+	reportData["food"] = decimal.NewFromInt(1)
+	reportData["other"] = decimal.NewFromInt(2)
+	storage.EXPECT().GetStatsBy(start, end).Return(reportData, "rub", nil)
+	handlerService := NewMessageHandlerService(
+		sender,
+		storage,
+		mocks.NewMockCurrencyService(ctrl),
+		mocks.NewMockCategoryService(ctrl),
+	)
 
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/report w",

@@ -18,23 +18,25 @@ func NewSpendingStorage(ctx context.Context, db *sqlx.DB) *dbSpendingStorage {
 	return &dbSpendingStorage{ctx: ctx, db: db}
 }
 
-func (s *dbSpendingStorage) Save(spending *model.Spending) error {
-	_, err := s.db.ExecContext(s.ctx, "insert into spendings(value, category, date) values($1,$2,$3)", spending.Value, spending.Category.String(), spending.Date)
+func (s *dbSpendingStorage) Save(spending model.Spending) error {
+	_, err := s.db.ExecContext(s.ctx, "insert into spendings(value, category_id, date) values($1,$2,$3)", spending.Value, spending.CategoryId, spending.Date)
 	return err
 }
 
-func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[model.Category]decimal.Decimal, error) {
+func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
 	results := []struct {
-		Category string
-		Value    decimal.Decimal
+		Name  string          `db:"name"`
+		Value decimal.Decimal `db:"value"`
 	}{}
-	if err := s.db.Select(&results, "select category, sum(value) as value from spendings where date between $1 and $2 group by category;", startAt, endAt); err != nil {
-		return map[model.Category]decimal.Decimal{}, err
+
+	q := "select categories.name as name, sum(spendings.value) as value from spendings inner join categories on spendings.category_id = categories.id where date between $1 and $2 group by categories.name"
+	if err := s.db.Select(&results, q, startAt, endAt); err != nil {
+		return nil, err
 	}
 
-	r := make(map[model.Category]decimal.Decimal)
+	r := make(map[string]decimal.Decimal)
 	for i := 0; i < len(results); i++ {
-		r[model.StrToCategory(results[i].Category)] = results[i].Value
+		r[results[i].Name] = results[i].Value
 	}
 
 	return r, nil

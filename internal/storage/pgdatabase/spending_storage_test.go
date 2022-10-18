@@ -15,7 +15,7 @@ func Test_Save(t *testing.T) {
 	storage := NewSpendingStorage(context.Background(), DB)
 	tests := []struct {
 		name     string
-		data     *model.Spending
+		data     model.Spending
 		prepareF func()
 		err      error
 	}{
@@ -24,7 +24,7 @@ func Test_Save(t *testing.T) {
 			prepareF: func() {
 			},
 			err:  nil,
-			data: &model.Spending{Value: decimal.NewFromInt(1), Category: model.Food, Date: time.Now()},
+			data: model.Spending{Value: decimal.NewFromInt(1), CategoryId: 1, Date: time.Now()},
 		},
 	}
 	for _, tt := range tests {
@@ -47,20 +47,23 @@ func Test_GetStatsBy(t *testing.T) {
 		endAt    time.Time
 		data     model.ReportType
 		prepareF func(start time.Time, end time.Time)
-		checkF   func(map[model.Category]decimal.Decimal, error)
+		checkF   func(map[string]decimal.Decimal, error)
 	}{
 		{
 			name:    "report is ok",
 			endAt:   time.Now(),
 			startAt: time.Now().AddDate(0, 0, -7),
 			prepareF: func(start time.Time, end time.Time) {
-				DB.MustExec("insert into spendings(value, category, date) values(1, 'food', $1)", start)
-				DB.MustExec("insert into spendings(value, category, date) values(1, 'food', $1)", start.AddDate(0, 0, 1))
-				DB.MustExec("insert into spendings(value, category, date) values(1, 'other', $1)", end)
+				DB.MustExec("insert into spendings(value, category_id, date) values(1, 1, $1)", start)
+				DB.MustExec("insert into spendings(value, category_id, date) values(1, 1, $1)", start.AddDate(0, 0, 1))
+				DB.MustExec("insert into spendings(value, category_id, date) values(1, 0, $1)", end)
 			},
 			data: model.Week,
-			checkF: func(report map[model.Category]decimal.Decimal, err error) {
-				assert.Equal(t, map[model.Category]decimal.Decimal{model.Food: decimal.NewFromInt(2), model.Other: decimal.NewFromInt(1)}, report)
+			checkF: func(report map[string]decimal.Decimal, err error) {
+
+				assert.True(t, report["food"].Equal(decimal.NewFromInt(1)))
+				assert.True(t, report["other"].Equal(decimal.NewFromInt(2)))
+
 				assert.NoError(t, err)
 			},
 		},

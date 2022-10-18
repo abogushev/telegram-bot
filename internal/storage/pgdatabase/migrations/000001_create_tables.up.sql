@@ -9,16 +9,17 @@ create table state(
 );
 
 create table categories(
-name varchar(100) PRIMARY KEY
+    id integer PRIMARY KEY,
+    name varchar(100) unique
 );
 
 create table spendings(
     value decimal(100, 2) not null,
-    category varchar REFERENCES categories (name),
+    category_id INTEGER REFERENCES categories (id),
     date date not null
 );
 
 --
 insert into currencies(code, ratio) values('rub', 1);
 insert into state values('rub');
-insert into categories(name) values('food'),('other');
+insert into categories(id, name) values(0, 'food'),(1, 'other');

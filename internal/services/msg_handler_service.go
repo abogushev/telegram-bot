@@ -17,36 +17,48 @@ type MessageSender interface {
 }
 
 type SpendingService interface {
-	Save(*model.Spending) error
-	GetStatsBy(time.Time, time.Time) (map[model.Category]decimal.Decimal, model.CurrencyType, error)
-	UpdateCurrentType(model.CurrencyType) error
+	Save(model.Spending) error
+	GetStatsBy(time.Time, time.Time) (map[string]decimal.Decimal, string, error)
+}
+
+type CurrencyService interface {
+	UpdateCurrentCurrency(c string) error
+	GetAll() []model.Currency
+}
+
+type CategoryService interface {
+	GetAll() []model.Category
 }
 
 type MessageHandlerService struct {
 	tgClient        MessageSender
 	spendingService SpendingService
+	currencyService CurrencyService
+	categoryService CategoryService
 }
 
 var helpMsg = `
 /help - call this help
-/add [category] [sum] - add spending, template
 /categories - show all categories
+/currencies - show all currencies
+/add [category] [sum] - add spending
 /report [type] - show report. type: w - week, m - month, y - year
-/currency [type] - change currency. type: 1 - USD, 2 - CNY, 3 - EUR, 4 - RUB
-`
-
-var categoriesMsg = `
-categories: 
-	0 - food
-	1 - other 
+/currency [type] - change currency
 `
 
 var dtTemplate = "02-01-2006"
 
-func NewMessageHandlerService(tgClient MessageSender, spendingService SpendingService) *MessageHandlerService {
+func NewMessageHandlerService(
+	tgClient MessageSender,
+	spendingService SpendingService,
+	currencyService CurrencyService,
+	categoryService CategoryService) *MessageHandlerService {
+
 	return &MessageHandlerService{
 		tgClient:        tgClient,
 		spendingService: spendingService,
+		currencyService: currencyService,
+		categoryService: categoryService,
 	}
 }
 
@@ -59,17 +71,22 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
 
 	switch tokens[0] {
 	case "/start":
-		resp = handleStart()
+		resp = "hello"
+
 	case "/help":
-		resp = handleHelp()
+		resp = helpMsg
+
 	case "/add":
 		resp = handleF(tokens, 4, s.handleAdd)
 
 	case "/categories":
-		resp = handleCategories()
+		resp = s.handleCategories()
 
 	case "/report":
 		resp = handleF(tokens, 2, s.handleReport)
+
+	case "/currencies":
+		resp = s.handleCurrencies()
 
 	case "/currency":
 		resp = handleF(tokens, 2, s.handleCurrencyChange)
@@ -93,13 +110,35 @@ func handleF(strs []string, count int, handler func([]string) (string, error)) s
 		return r
 	}
 }
+func genListMsg(els []string) string {
+	var sb strings.Builder
+	for i := 0; i < len(els); i++ {
+		sb.WriteString("- ")
+		sb.WriteString(els[i])
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+func (s *MessageHandlerService) handleCurrencies() string {
+	allCrns := s.currencyService.GetAll()
+	els := make([]string, len(allCrns))
 
-func handleStart() string {
-	return "hello"
+	for i := 0; i < len(allCrns); i++ {
+		els[i] = allCrns[i].Code
+	}
+
+	return genListMsg(els)
 }
 
-func handleHelp() string {
-	return helpMsg
+func (s *MessageHandlerService) handleCategories() string {
+	allCats := s.categoryService.GetAll()
+	els := make([]string, len(allCats))
+
+	for i := 0; i < len(allCats); i++ {
+		els[i] = strconv.Itoa(allCats[i].Id)
+	}
+
+	return genListMsg(els)
 }
 
 func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
@@ -113,16 +152,10 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 		return "", errors.New("sum  must be a number")
 	} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
 		return "", errors.New("wrong date format")
-	} else if cat > int(model.Food) || cat < int(model.Other) {
-		return "", errors.New("wrong category")
-	} else if err := s.spendingService.Save(model.NewSpending(sum, model.Category(cat), dt)); err != nil {
+	} else if err := s.spendingService.Save(model.NewSpending(sum, cat, dt)); err != nil {
 		return "", err
 	}
 	return "added", nil
-}
-
-func handleCategories() string {
-	return categoriesMsg
 }
 
 func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
@@ -148,26 +181,22 @@ func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
 }
 
 func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, error) {
-	if i, err := strconv.Atoi(strs[1]); err != nil {
-		return "", errWrongFormat
-	} else if cur, err := model.ParseCurrencyType(i); err != nil {
+	if err := s.currencyService.UpdateCurrentCurrency(strs[1]); err != nil {
 		return "", err
-	} else if err := s.spendingService.UpdateCurrentType(cur); err != nil {
-		return "failed to update", err
 	}
 	return "successfully changed", nil
 }
 
-func formatStats(start time.Time, end time.Time, r map[model.Category]decimal.Decimal, currency model.CurrencyType) string {
+func formatStats(start time.Time, end time.Time, r map[string]decimal.Decimal, currencyCode string) string {
 	if len(r) != 0 {
 		result := fmt.Sprintf("from: %v, to: %v\n", start.Format(dtTemplate), end.Format(dtTemplate))
-		cats := make([]model.Category, 0, len(r))
+		cats := make([]string, 0, len(r))
 		for k := range r {
 			cats = append(cats, k)
 		}
-		sort.Slice(cats, func(i, j int) bool { return int(cats[i]) < int(cats[j]) })
+		sort.Slice(cats, func(i, j int) bool { return cats[i] < cats[j] })
 		for i := 0; i < len(cats); i++ {
-			result += fmt.Sprintf("%v - %v %v\n", cats[i], r[cats[i]].Round(2), currency)
+			result += fmt.Sprintf("%v - %v %v\n", cats[i], r[cats[i]].Round(2), currencyCode)
 		}
 		return result
 	}
