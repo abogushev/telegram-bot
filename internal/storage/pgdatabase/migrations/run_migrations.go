@@ -14,7 +14,7 @@ func run(url, path string, f func(m *migrate.Migrate) error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := f(m); err != nil {
+	if err := f(m); err != nil && err != migrate.ErrNoChange {
 		log.Fatal(err)
 	}
 }

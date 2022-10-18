@@ -41,7 +41,7 @@ var helpMsg = `
 /help - call this help
 /categories - show all categories
 /currencies - show all currencies
-/add [category] [sum] - add spending
+/add [category] [sum] [date] - add spending 
 /report [type] - show report. type: w - week, m - month, y - year
 /currency [type] - change currency
 `
@@ -113,7 +113,6 @@ func handleF(strs []string, count int, handler func([]string) (string, error)) s
 func genListMsg(els []string) string {
 	var sb strings.Builder
 	for i := 0; i < len(els); i++ {
-		sb.WriteString("- ")
 		sb.WriteString(els[i])
 		sb.WriteString("\n")
 	}
@@ -135,7 +134,7 @@ func (s *MessageHandlerService) handleCategories() string {
 	els := make([]string, len(allCats))
 
 	for i := 0; i < len(allCats); i++ {
-		els[i] = strconv.Itoa(allCats[i].Id)
+		els[i] = strconv.Itoa(allCats[i].Id) + " - " + allCats[i].Name
 	}
 
 	return genListMsg(els)

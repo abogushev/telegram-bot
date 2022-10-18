@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -34,12 +35,12 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		return nil, err
 	}
 
-	if len(currencies) > 0 {
+	if len(currencies) > 1 {
 		mcurrencies := make(map[string]model.Currency)
 		for i := 0; i < len(currencies); i++ {
 			mcurrencies[currencies[i].Code] = currencies[i]
 		}
-
+		log.Println("CURRENCIES:", mcurrencies)
 		return &currencyService{
 			currencies:        mcurrencies,
 			currentCurrency:   currentCurrency,
@@ -54,7 +55,7 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		if err := cs.updateCurrencies(context.Background()); err != nil {
 			return nil, err
 		}
-
+		log.Println("CURRENCIES AFTER LOAD:", cs.currencies)
 		return cs, nil
 	}
 }
@@ -69,10 +70,11 @@ type currenciesStorage interface {
 func (cs *currencyService) GetAll() []model.Currency {
 	cs.currenciesM.RLock()
 	defer cs.currenciesM.RUnlock()
-	result := make([]model.Currency, 0)
+	result := make([]model.Currency, 0, len(cs.currencies))
 	for _, v := range cs.currencies {
 		result = append(result, v)
 	}
+	log.Println("RETURN CURRENCIES:", result)
 	return result
 }
 
@@ -150,6 +152,9 @@ func (s *currencyService) updateCurrencies(ctx context.Context) error {
 	if err := json.Unmarshal(body, &rs); err != nil {
 		return err
 	}
+	if len(rs.Data) == 0 {
+		return nil
+	}
 	arr := make([]model.Currency, 0, len(rs.Data))
 	mapCt := make(map[string]model.Currency)
 	for code, v := range rs.Data {
@@ -164,6 +169,7 @@ func (s *currencyService) updateCurrencies(ctx context.Context) error {
 		return err
 	}
 	s.currencies = mapCt
+	fmt.Println("CURRENCIES UPDATED: ", s.currencies)
 	return nil
 }
 

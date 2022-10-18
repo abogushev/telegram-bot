@@ -1,7 +1,7 @@
 
 create table currencies(
     code varchar(10) PRIMARY KEY,
-    ratio decimal(6) not null
+    ratio decimal(10, 6) not null
 );
 
 create table state(
