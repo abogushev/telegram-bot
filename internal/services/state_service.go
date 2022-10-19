@@ -30,7 +30,7 @@ func NewStateService(storage stateStorage, ctx context.Context) (*stateService, 
 	}
 	service := &stateService{stateStorage: storage, state: state, stateM: sync.RWMutex{}}
 
-	go service.runJob(ctx, time.Now().Sub(state.BudgetExpiresIn))
+	go service.runJob(ctx, time.Until(state.BudgetExpiresIn))
 
 	return service, nil
 }
@@ -70,7 +70,8 @@ func (s *stateService) runJob(ctx context.Context, nextTriggerTime time.Duration
 		select {
 		case <-timer.C:
 			nextMonth := time.Now().AddDate(0, 1, 0).Truncate(24 * time.Hour)
-			timer = time.NewTimer(nextMonth.Sub(time.Now()))
+
+			timer = time.NewTimer(time.Until(nextMonth))
 
 			if err := s.updateBalance(nextMonth); err != nil {
 				log.Printf("error on update state, %v\n", err)
