@@ -50,8 +50,7 @@ func main() {
 	currencyService.RunUpdateCurrenciesDaemon(ctx, cfg.UpdateCurrenciesInterval)
 	log.Println("run RunUpdateCurrenciesDaemon")
 
-	spendingService := services.NewSpendingService(spendigStorage, currencyService)
-	log.Println("init spendingService")
+
 
 	categoryStorage := pgdatabase.NewCategoryStorage(ctx, db)
 	log.Println("init categoryStorage")
@@ -62,9 +61,21 @@ func main() {
 	}
 	log.Println("init categoryService")
 
-	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService)
+	stateStorage := pgdatabase.NewStateStorage(ctx, db)
+	stateService, err := services.NewStateService(stateStorage, ctx)
+	if err != nil {
+		log.Fatal("stateService init failed", err)
+	}
+	log.Println("init stateService")
+
+	spendingService := services.NewSpendingService(spendigStorage, currencyService, stateService)
+	log.Println("init spendingService")
+
+	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService, stateService)
 	log.Println("init msg handler")
 	
+
+
 	go tgClient.ListenUpdates(handler, ctx)
 
 	<-ctx.Done()

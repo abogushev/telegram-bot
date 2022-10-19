@@ -153,7 +153,7 @@ func Test_UpdateCurrencies(t *testing.T) {
 				{Code: "eur", Ratio: decimal.NewFromInt(2)},
 			},
 			prepareF: func() {
-				DB.MustExec("insert into currencies values('cny', 0) ")
+				DB.MustExec("insert into currencies values('cny', 0)")
 			},
 			checkF: func(err error) {
 				assert.ErrorIs(t, err, nil)

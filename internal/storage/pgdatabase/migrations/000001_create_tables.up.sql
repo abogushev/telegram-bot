@@ -5,7 +5,10 @@ create table currencies(
 );
 
 create table state(
-    current_currency_code varchar REFERENCES currencies (code)
+    current_currency_code varchar REFERENCES currencies (code),
+    budget_value decimal(10, 2) not null,
+    budget_balance decimal(10, 2) not null,
+    budget_expires_in date not null
 );
 
 create table categories(
@@ -19,7 +22,10 @@ create table spendings(
     date date not null
 );
 
+-- индекс по дате, т.к по ней происходит отбор для отчета
+CREATE INDEX idx_spendings_date ON spendings(date);
 --
 insert into currencies(code, ratio) values('rub', 1);
-insert into state values('rub');
 insert into categories(id, name) values(0, 'food'),(1, 'other');
+
+insert into state(current_currency_code, budget_value, budget_balance, budget_expires_in) values('rub', 1000, 1000, now() + interval '1 month');

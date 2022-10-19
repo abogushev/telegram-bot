@@ -17,7 +17,7 @@ type MessageSender interface {
 }
 
 type SpendingService interface {
-	Save(model.Spending) error
+	SaveTx(model.Spending) (decimal.Decimal, error)
 	GetStatsBy(time.Time, time.Time) (map[string]decimal.Decimal, string, error)
 }
 
@@ -29,12 +29,15 @@ type CurrencyService interface {
 type CategoryService interface {
 	GetAll() []model.Category
 }
-
+type StateService interface {
+	GetBalance() decimal.Decimal
+}
 type MessageHandlerService struct {
 	tgClient        MessageSender
 	spendingService SpendingService
 	currencyService CurrencyService
 	categoryService CategoryService
+	stateService	StateService
 }
 
 var helpMsg = `
@@ -52,13 +55,15 @@ func NewMessageHandlerService(
 	tgClient MessageSender,
 	spendingService SpendingService,
 	currencyService CurrencyService,
-	categoryService CategoryService) *MessageHandlerService {
+	categoryService CategoryService,
+	stateService StateService) *MessageHandlerService {
 
 	return &MessageHandlerService{
 		tgClient:        tgClient,
 		spendingService: spendingService,
 		currencyService: currencyService,
 		categoryService: categoryService,
+		stateService: stateService,
 	}
 }
 
@@ -91,6 +96,8 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
 	case "/currency":
 		resp = handleF(tokens, 2, s.handleCurrencyChange)
 
+	case "/balance":
+		resp = fmt.Sprintf("%v rub", s.stateService.GetBalance())
 	default:
 		resp = "не знаю эту команду"
 	}
@@ -144,6 +151,7 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 	catStr := tokens[1]
 	sumStr := tokens[2]
 	dtStr := tokens[3]
+	var balanceAfter decimal.Decimal
 
 	if cat, err := strconv.Atoi(catStr); err != nil {
 		return "", errors.New("category must be a number")
@@ -151,10 +159,10 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 		return "", errors.New("sum  must be a number")
 	} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
 		return "", errors.New("wrong date format")
-	} else if err := s.spendingService.Save(model.NewSpending(sum, cat, dt)); err != nil {
+	} else if balanceAfter, err = s.spendingService.SaveTx(model.NewSpending(sum, cat, dt)); err != nil {
 		return "", err
 	}
-	return "added", nil
+	return fmt.Sprintf("added, current balance: %v", balanceAfter), nil
 }
 
 func (s *MessageHandlerService) handleReport(strs []string) (string, error) {

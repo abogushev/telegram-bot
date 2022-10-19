@@ -14,13 +14,19 @@ type dbSpendingStorage struct {
 	db  *sqlx.DB
 }
 
-func NewSpendingStorage(ctx context.Context, db *sqlx.DB) *dbSpendingStorage {
+func NewSpendingStorage(ctx context.Context, db *sqlx.DB, ) *dbSpendingStorage {
 	return &dbSpendingStorage{ctx: ctx, db: db}
 }
 
 func (s *dbSpendingStorage) Save(spending model.Spending) error {
 	_, err := s.db.ExecContext(s.ctx, "insert into spendings(value, category_id, date) values($1,$2,$3)", spending.Value, spending.CategoryId, spending.Date)
 	return err
+}
+func (s *dbSpendingStorage) SaveTx(tx *sqlx.Tx, spending model.Spending) error {
+	if _, err := tx.ExecContext(s.ctx, "insert into spendings(value, category_id, date) values($1,$2,$3)", spending.Value, spending.CategoryId, spending.Date); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
