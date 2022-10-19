@@ -6,8 +6,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
 var once = sync.Once{}
 var db *sqlx.DB
+
 func InitDB(ctx context.Context, url string) (*sqlx.DB, error) {
 	var err error
 	once.Do(func() {
@@ -19,7 +21,7 @@ func InitDB(ctx context.Context, url string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func RunInTx(fs ... func(tx *sqlx.Tx) error) error {
+func RunInTx(fs ...func(tx *sqlx.Tx) error) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		return err

@@ -2,12 +2,13 @@ package services
 
 import (
 	"context"
-	"github.com/shopspring/decimal"
-	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 	"log"
 	"sync"
 	"time"
+
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
 type stateStorage interface {
@@ -18,8 +19,8 @@ type stateStorage interface {
 }
 type stateService struct {
 	stateStorage stateStorage
-	state model.State
-	stateM sync.RWMutex
+	state        model.State
+	stateM       sync.RWMutex
 }
 
 func NewStateService(storage stateStorage, ctx context.Context) (*stateService, error) {
@@ -62,26 +63,26 @@ func (s *stateService) DecreaseBudgetBalanceTx(tx *sqlx.Tx, v decimal.Decimal) (
 	return s.state.BudgetBalance, nil
 }
 
-func(s *stateService) runJob(ctx context.Context, nextTriggerTime time.Duration) {
+func (s *stateService) runJob(ctx context.Context, nextTriggerTime time.Duration) {
 	timer := time.NewTimer(nextTriggerTime)
 
 	for {
 		select {
 		case <-timer.C:
-			nextMonth := time.Now().AddDate(0,1,0).Truncate(24 * time.Hour)
+			nextMonth := time.Now().AddDate(0, 1, 0).Truncate(24 * time.Hour)
 			timer = time.NewTimer(nextMonth.Sub(time.Now()))
 
 			if err := s.updateBalance(nextMonth); err != nil {
 				log.Printf("error on update state, %v\n", err)
 			}
-			case <-ctx.Done():
-				log.Printf("cancel update state job")
-				return
+		case <-ctx.Done():
+			log.Printf("cancel update state job")
+			return
 		}
 	}
 }
 
-func(s *stateService) updateBalance(nextTime time.Time) error {
+func (s *stateService) updateBalance(nextTime time.Time) error {
 	s.stateM.RLock()
 	defer s.stateM.RUnlock()
 	if err := s.stateStorage.UpdateBalanceAndExpiresIn(s.state.BudgetValue, nextTime); err != nil {

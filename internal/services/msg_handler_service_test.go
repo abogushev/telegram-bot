@@ -21,6 +21,7 @@ func Test_OnStartCommand_ShouldAnswerWithIntroMessage(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	sender.EXPECT().SendMessage("hello", int64(123))
@@ -43,6 +44,7 @@ func Test_OnUnknownCommand_ShouldAnswerWithHelpMessage(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -63,6 +65,7 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -84,6 +87,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberCatValue(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -105,6 +109,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberSumValue(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -126,6 +131,7 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 		mocks.NewMockSpendingService(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -140,15 +146,16 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	sender := mocks.NewMockMessageSender(ctrl)
-	sender.EXPECT().SendMessage("added", int64(123))
+	sender.EXPECT().SendMessage("added, current balance: 0", int64(123))
 	storage := mocks.NewMockSpendingService(ctrl)
 	dt, _ := time.Parse("02-01-2006", "01-01-2000")
-	storage.EXPECT().Save(model.NewSpending(decimal.NewFromInt(1), 1, dt))
+	storage.EXPECT().SaveTx(model.NewSpending(decimal.NewFromInt(1), 1, dt))
 	handlerService := NewMessageHandlerService(
 		sender,
 		storage,
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{
@@ -177,6 +184,7 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 		storage,
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
+		mocks.NewMockStateService(ctrl),
 	)
 
 	err := handlerService.HandleMsg(&model.Message{

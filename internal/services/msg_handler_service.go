@@ -37,7 +37,7 @@ type MessageHandlerService struct {
 	spendingService SpendingService
 	currencyService CurrencyService
 	categoryService CategoryService
-	stateService	StateService
+	stateService    StateService
 }
 
 var helpMsg = `
@@ -63,7 +63,7 @@ func NewMessageHandlerService(
 		spendingService: spendingService,
 		currencyService: currencyService,
 		categoryService: categoryService,
-		stateService: stateService,
+		stateService:    stateService,
 	}
 }
 

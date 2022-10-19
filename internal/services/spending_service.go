@@ -1,12 +1,13 @@
 package services
 
 import (
-	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
 	"log"
 	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
 )
 
 type spendingStorageI interface {
@@ -24,7 +25,7 @@ type stateServiceI interface {
 type spendingService struct {
 	spendingStorage spendingStorageI
 	currencyService currencyServiceI
-	stateService stateServiceI
+	stateService    stateServiceI
 }
 
 func NewSpendingService(spendingStorage spendingStorageI, currencyService currencyServiceI, stateServiceTx stateServiceI) *spendingService {
@@ -41,14 +42,14 @@ func (s *spendingService) SaveTx(spending model.Spending) (decimal.Decimal, erro
 
 	var balanceAfter decimal.Decimal
 	err := pgdatabase.RunInTx(
-		func (tx *sqlx.Tx) error {
+		func(tx *sqlx.Tx) error {
 			var err error
 			log.Println("start DecreaseBudgetBalanceTx")
 			balanceAfter, err = s.stateService.DecreaseBudgetBalanceTx(tx, spending.Value)
 			log.Println("end DecreaseBudgetBalanceTx")
 			return err
-	},
-	func (tx *sqlx.Tx) error {
+		},
+		func(tx *sqlx.Tx) error {
 			log.Println("start SaveTx")
 			err := s.spendingStorage.SaveTx(tx, spending)
 			log.Println("end SaveTx")

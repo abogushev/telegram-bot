@@ -29,7 +29,6 @@ func main() {
 	}
 	log.Println("init tgClient")
 
-
 	db, err := pgdatabase.InitDB(ctx, "user=postgres password=postgres dbname=postgres sslmode=disable")
 	migrations.Up("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable", "internal/storage/pgdatabase/migrations")
 
@@ -49,8 +48,6 @@ func main() {
 	log.Println("init currencyService")
 	currencyService.RunUpdateCurrenciesDaemon(ctx, cfg.UpdateCurrenciesInterval)
 	log.Println("run RunUpdateCurrenciesDaemon")
-
-
 
 	categoryStorage := pgdatabase.NewCategoryStorage(ctx, db)
 	log.Println("init categoryStorage")
@@ -73,8 +70,6 @@ func main() {
 
 	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService, stateService)
 	log.Println("init msg handler")
-	
-
 
 	go tgClient.ListenUpdates(handler, ctx)
 

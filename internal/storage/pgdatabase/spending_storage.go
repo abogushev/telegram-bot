@@ -14,7 +14,7 @@ type dbSpendingStorage struct {
 	db  *sqlx.DB
 }
 
-func NewSpendingStorage(ctx context.Context, db *sqlx.DB, ) *dbSpendingStorage {
+func NewSpendingStorage(ctx context.Context, db *sqlx.DB) *dbSpendingStorage {
 	return &dbSpendingStorage{ctx: ctx, db: db}
 }
 
