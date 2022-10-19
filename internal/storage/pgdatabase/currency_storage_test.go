@@ -98,7 +98,9 @@ func Test_GetCurrency(t *testing.T) {
 			tt.prepareF()
 			ctype, err := storage.GetCurrentCurrency()
 			assert.ErrorIs(t, err, tt.err)
-			assert.Equal(t, ctype, tt.ctype)
+
+			assert.Equal(t, ctype.Code, tt.ctype.Code)
+			assert.True(t, ctype.Ratio.Equal(tt.ctype.Ratio))
 		})
 	}
 }
