@@ -30,7 +30,7 @@ type CategoryService interface {
 	GetAll() []model.Category
 }
 type StateService interface {
-	GetBalance() decimal.Decimal
+	GetBalance() (decimal.Decimal, error)
 }
 type MessageHandlerService struct {
 	tgClient        MessageSender
@@ -97,7 +97,8 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
 		resp = handleF(tokens, 2, s.handleCurrencyChange)
 
 	case "/balance":
-		resp = fmt.Sprintf("%v rub", s.stateService.GetBalance())
+		resp = s.handleBalance()
+
 	default:
 		resp = "не знаю эту команду"
 	}
@@ -124,6 +125,14 @@ func genListMsg(els []string) string {
 		sb.WriteString("\n")
 	}
 	return sb.String()
+}
+
+func (s *MessageHandlerService) handleBalance() string {
+	if v, err := s.stateService.GetBalance(); err != nil {
+		return err.Error()
+	} else {
+		return fmt.Sprintf("%v rub", v)
+	}
 }
 func (s *MessageHandlerService) handleCurrencies() string {
 	allCrns := s.currencyService.GetAll()

@@ -21,15 +21,9 @@ type currencyService struct {
 	currencies        map[string]model.Currency
 	currenciesM       sync.RWMutex
 	currenciesStorage currenciesStorage
-	currentCurrency   model.Currency
-	currentCurrencyM  sync.RWMutex
 }
 
 func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, error) {
-	currentCurrency, err := currenciesStorage.GetCurrentCurrency()
-	if err != nil {
-		return nil, err
-	}
 	currencies, err := currenciesStorage.GetCurrencies()
 	if err != nil {
 		return nil, err
@@ -43,13 +37,11 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		log.Println("CURRENCIES:", mcurrencies)
 		return &currencyService{
 			currencies:        mcurrencies,
-			currentCurrency:   currentCurrency,
 			currenciesStorage: currenciesStorage,
 		}, nil
 	} else {
 		cs := &currencyService{
 			currencies:        map[string]model.Currency{},
-			currentCurrency:   currentCurrency,
 			currenciesStorage: currenciesStorage,
 		}
 		if err := cs.updateCurrencies(context.Background()); err != nil {
@@ -85,12 +77,13 @@ func (cs *currencyService) CheckCurrencyCode(code string) bool {
 	return ok
 }
 
-func (cs *currencyService) GetCurrentCurrency() model.Currency {
-	cs.currentCurrencyM.RLock()
-	defer cs.currentCurrencyM.RUnlock()
-	return cs.currentCurrency
+func (cs *currencyService) GetCurrentCurrency() (model.Currency, error) {
+	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency()
+	if err != nil {
+		return model.Currency{}, err
+	}
+	return currentCurrency, nil
 }
-
 func (cs *currencyService) UpdateCurrentCurrency(newCur string) error {
 	cs.currenciesM.RLock()
 	currency, ok := cs.currencies[newCur]
@@ -99,18 +92,7 @@ func (cs *currencyService) UpdateCurrentCurrency(newCur string) error {
 		return model.ErrWrongCurrency
 	}
 
-	cs.currentCurrencyM.RLock()
-	defer cs.currentCurrencyM.RUnlock()
-
-	if currency.Code == cs.currentCurrency.Code {
-		return nil
-	}
-
-	if err := cs.currenciesStorage.UpdateCurrentCurrency(currency.Code); err != nil {
-		return err
-	}
-	cs.currentCurrency = currency
-	return nil
+	return cs.currenciesStorage.UpdateCurrentCurrency(currency.Code)
 }
 
 func (s *currencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateInterval time.Duration) {

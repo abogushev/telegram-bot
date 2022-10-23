@@ -38,8 +38,14 @@ func (s *dbStateStorage) UpdateBalanceTx(tx *sqlx.Tx, v decimal.Decimal) error {
 	return err
 }
 
-func (s *dbStateStorage) UpdateBalanceAndExpiresIn(v decimal.Decimal, t time.Time) error {
-	if _, err := s.db.ExecContext(s.ctx, "update state set budget_balance = $1, budget_expires_in = $2", v, t); err != nil {
+func (s *dbStateStorage) DecreaseBalanceTx(tx *sqlx.Tx, v decimal.Decimal) (decimal.Decimal, error) {
+	var result decimal.Decimal
+	err := tx.QueryRowContext(s.ctx, "update state set budget_balance = budget_balance - $1 RETURNING budget_balance", v).Scan(&result)
+	return result, err
+}
+
+func (s *dbStateStorage) UpdateBalanceAndExpiresIn(t time.Time) error {
+	if _, err := s.db.ExecContext(s.ctx, "update state set budget_balance = budget_value, budget_expires_in = $2", t); err != nil {
 		return err
 	}
 	return nil

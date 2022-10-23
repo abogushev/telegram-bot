@@ -216,11 +216,12 @@ func (m *MockStateService) EXPECT() *MockStateServiceMockRecorder {
 }
 
 // GetBalance mocks base method.
-func (m *MockStateService) GetBalance() decimal.Decimal {
+func (m *MockStateService) GetBalance() (decimal.Decimal, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBalance")
 	ret0, _ := ret[0].(decimal.Decimal)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetBalance indicates an expected call of GetBalance.

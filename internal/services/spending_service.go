@@ -17,10 +17,10 @@ type spendingStorageI interface {
 }
 
 type currencyServiceI interface {
-	GetCurrentCurrency() model.Currency
+	GetCurrentCurrency() (model.Currency, error)
 }
 type stateServiceI interface {
-	DecreaseBudgetBalanceTx(tx *sqlx.Tx, v decimal.Decimal) (decimal.Decimal, error)
+	DecreaseBalanceTx(tx *sqlx.Tx, v decimal.Decimal) (decimal.Decimal, error)
 }
 type spendingService struct {
 	spendingStorage spendingStorageI
@@ -33,20 +33,28 @@ func NewSpendingService(spendingStorage spendingStorageI, currencyService curren
 }
 
 func (s *spendingService) Save(spending model.Spending) error {
-	spending.Value = spending.Value.Div(s.currencyService.GetCurrentCurrency().Ratio)
-	return s.spendingStorage.Save(spending)
+	if cur, err := s.currencyService.GetCurrentCurrency(); err != nil {
+		return err
+	} else {
+		spending.Value = spending.Value.Div(cur.Ratio)
+		return s.spendingStorage.Save(spending)
+	}
 }
 
 func (s *spendingService) SaveTx(spending model.Spending) (decimal.Decimal, error) {
-	spending.Value = spending.Value.Div(s.currencyService.GetCurrentCurrency().Ratio)
+	if cur, err := s.currencyService.GetCurrentCurrency(); err != nil {
+		return decimal.Decimal{}, err
+	} else {
+		spending.Value = spending.Value.Div(cur.Ratio)
+	}
 
 	var balanceAfter decimal.Decimal
 	err := pgdatabase.RunInTx(
 		func(tx *sqlx.Tx) error {
 			var err error
-			log.Println("start DecreaseBudgetBalanceTx")
-			balanceAfter, err = s.stateService.DecreaseBudgetBalanceTx(tx, spending.Value)
-			log.Println("end DecreaseBudgetBalanceTx")
+			log.Println("start DecreaseBalanceTx")
+			balanceAfter, err = s.stateService.DecreaseBalanceTx(tx, spending.Value)
+			log.Println("end DecreaseBalanceTx")
 			return err
 		},
 		func(tx *sqlx.Tx) error {
@@ -65,7 +73,10 @@ func (s *spendingService) GetStatsBy(start, end time.Time) (map[string]decimal.D
 		return nil, "", err
 	}
 	rs := make(map[string]decimal.Decimal)
-	ct := s.currencyService.GetCurrentCurrency()
+	ct, err := s.currencyService.GetCurrentCurrency()
+	if err != nil {
+		return nil, "", err
+	}
 	for k, v := range data {
 		rs[k] = ct.Ratio.Mul(v)
 	}
