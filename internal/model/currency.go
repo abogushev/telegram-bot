@@ -1,40 +1,18 @@
 package model
 
-import "errors"
+import (
+	"errors"
 
-type CurrencyType int
-
-const (
-	Undefined CurrencyType = iota
-	USD
-	CNY
-	EUR
-	RUB
+	"github.com/shopspring/decimal"
 )
 
-func (c CurrencyType) String() string {
-	switch c {
-	case USD:
-		return "$"
-	case CNY:
-		return "¥"
-	case EUR:
-		return "€"
-	case RUB:
-		return "₽"
-	default:
-		return "?"
-	}
+var ErrWrongCurrency = errors.New("wrong currency type")
+
+type Currency struct {
+	Code  string          `db:"code"`
+	Ratio decimal.Decimal `db:"ratio"`
 }
 
-var AllNonBaseCurrenciesType = []CurrencyType{USD, CNY, EUR}
-var ErrWrongCurrencyType = errors.New("wrong currency type")
-
-func ParseCurrencyType(t int) (CurrencyType, error) {
-	switch {
-	case t >= 0 && t < int(RUB):
-		return CurrencyType(t), nil
-	default:
-		return Undefined, ErrWrongCurrencyType
-	}
+func NewCurrency(code string, ratio decimal.Decimal) *Currency {
+	return &Currency{code, ratio}
 }

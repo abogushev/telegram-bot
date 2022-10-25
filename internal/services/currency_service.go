@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -15,26 +16,93 @@ import (
 
 var url = "https://api.currencyapi.com/v3/latest?apikey=dO62Nn8Y3f18mpvbN6ypoaBrzEtKF8Fkd8bdavYy&currencies=EUR%2CUSD%2CCNY&base_currency=RUB"
 
-type CurrencyService struct {
-	jobMutex sync.Once
+type currencyService struct {
+	jobMutex          sync.Once
+	currencies        map[string]model.Currency
+	currenciesM       sync.RWMutex
+	currenciesStorage currenciesStorage
 }
 
-func NewCurrencyService() *CurrencyService {
-	return &CurrencyService{}
+func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, error) {
+	currencies, err := currenciesStorage.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(currencies) > 1 {
+		mcurrencies := make(map[string]model.Currency)
+		for i := 0; i < len(currencies); i++ {
+			mcurrencies[currencies[i].Code] = currencies[i]
+		}
+		log.Println("CURRENCIES:", mcurrencies)
+		return &currencyService{
+			currencies:        mcurrencies,
+			currenciesStorage: currenciesStorage,
+		}, nil
+	} else {
+		cs := &currencyService{
+			currencies:        map[string]model.Currency{},
+			currenciesStorage: currenciesStorage,
+		}
+		if err := cs.updateCurrencies(context.Background()); err != nil {
+			return nil, err
+		}
+		log.Println("CURRENCIES AFTER LOAD:", cs.currencies)
+		return cs, nil
+	}
 }
 
 type currenciesStorage interface {
-	UpdateCurrencies(map[model.CurrencyType]decimal.Decimal)
+	GetCurrentCurrency() (model.Currency, error)
+	GetCurrencies() ([]model.Currency, error)
+	UpdateCurrencies([]model.Currency) error
+	UpdateCurrentCurrency(name string) error
 }
 
-func (s *CurrencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateInterval time.Duration, currenciesStorage currenciesStorage) {
+func (cs *currencyService) GetAll() []model.Currency {
+	cs.currenciesM.RLock()
+	defer cs.currenciesM.RUnlock()
+	result := make([]model.Currency, 0, len(cs.currencies))
+	for _, v := range cs.currencies {
+		result = append(result, v)
+	}
+	log.Println("RETURN CURRENCIES:", result)
+	return result
+}
+
+func (cs *currencyService) CheckCurrencyCode(code string) bool {
+	cs.currenciesM.RLock()
+	defer cs.currenciesM.RUnlock()
+	_, ok := cs.currencies[code]
+	return ok
+}
+
+func (cs *currencyService) GetCurrentCurrency() (model.Currency, error) {
+	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency()
+	if err != nil {
+		return model.Currency{}, err
+	}
+	return currentCurrency, nil
+}
+func (cs *currencyService) UpdateCurrentCurrency(newCur string) error {
+	cs.currenciesM.RLock()
+	currency, ok := cs.currencies[newCur]
+	cs.currenciesM.RUnlock()
+	if !ok {
+		return model.ErrWrongCurrency
+	}
+
+	return cs.currenciesStorage.UpdateCurrentCurrency(currency.Code)
+}
+
+func (s *currencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateInterval time.Duration) {
 	go s.jobMutex.Do(func() {
 		ticker := time.NewTicker(updateInterval)
 
 		for {
 			select {
 			case <-ticker.C:
-				if err := updateCurrencies(ctx, currenciesStorage); err != nil {
+				if err := s.updateCurrencies(ctx); err != nil {
 					fmt.Printf("error on update currencies, %v\n", err)
 				}
 			case <-ctx.Done():
@@ -45,7 +113,7 @@ func (s *CurrencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateI
 	})
 }
 
-func updateCurrencies(ctx context.Context, currenciesStorage currenciesStorage) error {
+func (s *currencyService) updateCurrencies(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
@@ -66,20 +134,24 @@ func updateCurrencies(ctx context.Context, currenciesStorage currenciesStorage) 
 	if err := json.Unmarshal(body, &rs); err != nil {
 		return err
 	}
-	currencies := make(map[model.CurrencyType]decimal.Decimal)
-
-	for ctype, cur := range rs.Data {
-		switch ctype {
-		case "USD":
-			currencies[model.USD] = cur.Value
-		case "CNY":
-			currencies[model.CNY] = cur.Value
-		case "EUR":
-			currencies[model.EUR] = cur.Value
-		}
+	if len(rs.Data) == 0 {
+		return nil
+	}
+	arr := make([]model.Currency, 0, len(rs.Data))
+	mapCt := make(map[string]model.Currency)
+	for code, v := range rs.Data {
+		m := *model.NewCurrency(code, v.Value)
+		arr = append(arr, m)
+		mapCt[m.Code] = m
 	}
 
-	currenciesStorage.UpdateCurrencies(currencies)
+	s.currenciesM.Lock()
+	defer s.currenciesM.Unlock()
+	if err := s.currenciesStorage.UpdateCurrencies(arr); err != nil {
+		return err
+	}
+	s.currencies = mapCt
+	fmt.Println("CURRENCIES UPDATED: ", s.currencies)
 	return nil
 }
 
