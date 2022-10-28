@@ -2,9 +2,9 @@ package tg
 
 import (
 	"context"
-	"log"
+	"go.uber.org/zap"
 	"sync"
-
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
@@ -43,24 +43,24 @@ func (c *Client) ListenUpdates(handler *services.MessageHandlerService, ctx cont
 
 		updates := c.client.GetUpdatesChan(u)
 
-		log.Println("listening for messages")
+		Log.Info("listening for messages")
 
 		for {
 			select {
 			case <-ctx.Done():
 				c.client.StopReceivingUpdates()
-				log.Println("stop listening messages")
+				Log.Info("stop listening messages")
 				return
 			case update := <-updates:
 				if update.Message != nil { // If we got a message
-					log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+					Log.Info("inocming msg", zap.String("username", update.Message.From.UserName), zap.String("text", update.Message.Text))
 
 					err := handler.HandleMsg(&model.Message{
 						Text:   update.Message.Text,
 						UserID: update.Message.From.ID,
 					})
 					if err != nil {
-						log.Println("error processing message:", err)
+						Log.Error("error processing message:", zap.Error(err))
 					}
 				}
 			}

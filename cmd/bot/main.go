@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
+	"go.uber.org/zap"
 	"os/signal"
 	"syscall"
 	"time"
-
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
@@ -19,61 +19,64 @@ func main() {
 
 	cfg, err := config.New()
 	if err != nil {
-		log.Fatal("config init failed:", err)
+		Log.Fatal("config init failed:%v", zap.Error(err))
 	}
-	log.Println("init cnfg")
+	Log.Info("init cnfg")
 
 	tgClient, err := tg.New(cfg.Token)
 	if err != nil {
-		log.Fatal("tg client init failed:", err)
+		Log.Fatal("tg client init failed:", zap.Error(err))
 	}
-	log.Println("init tgClient")
+	Log.Info("init tgClient")
 
-	db, err := pgdatabase.InitDB(ctx, "user=postgres password=postgres dbname=postgres sslmode=disable")
-	migrations.Up("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable", "internal/storage/pgdatabase/migrations")
-
+	db, err := pgdatabase.InitDB(ctx, "user=postgres password=postgres host=localhost dbname=postgres sslmode=disable")
 	if err != nil {
-		log.Fatal("db init failed:", err)
+		Log.Fatal("db init failed:", zap.Error(err))
 	}
-	log.Println("init db")
+	Log.Info("starting up migrations...")
+
+	migrations.Up("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable", "internal/storage/pgdatabase/migrations")
+	Log.Info("successfully migrated")
+
+	Log.Info("init db")
 
 	spendigStorage := pgdatabase.NewSpendingStorage(ctx, db)
-	log.Println("init spendigStorage")
+	Log.Info("init spendigStorage")
 	currencyStorage := pgdatabase.NewCurrencyStorage(ctx, db)
-	log.Println("init currencyStorage")
+	Log.Info("init currencyStorage")
 	currencyService, err := services.NewCurrencyService(currencyStorage)
 	if err != nil {
-		log.Fatal("currencyService init failed", err)
+		Log.Fatal("currencyService init failed", zap.Error(err))
 	}
-	log.Println("init currencyService")
+	Log.Info("init currencyService")
 	currencyService.RunUpdateCurrenciesDaemon(ctx, cfg.UpdateCurrenciesInterval)
-	log.Println("run RunUpdateCurrenciesDaemon")
+	Log.Info("run RunUpdateCurrenciesDaemon")
 
 	categoryStorage := pgdatabase.NewCategoryStorage(ctx, db)
-	log.Println("init categoryStorage")
+	Log.Info("init categoryStorage")
 
 	categoryService, err := services.NewCategoryService(categoryStorage)
 	if err != nil {
-		log.Fatal("categoryService init failed", err)
+		Log.Fatal("categoryService init failed", zap.Error(err))
 	}
-	log.Println("init categoryService")
+	Log.Info("init categoryService")
 
 	stateStorage := pgdatabase.NewStateStorage(ctx, db)
 	stateService, err := services.NewStateService(stateStorage, ctx)
 	if err != nil {
-		log.Fatal("stateService init failed", err)
+		Log.Fatal("stateService init failed", zap.Error(err))
 	}
-	log.Println("init stateService")
+	Log.Info("init stateService")
 
 	spendingService := services.NewSpendingService(spendigStorage, currencyService, stateService)
-	log.Println("init spendingService")
+	Log.Info("init spendingService")
 
 	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService, stateService)
-	log.Println("init msg handler")
+	Log.Info("init msg handler")
 
 	go tgClient.ListenUpdates(handler, ctx)
 
 	<-ctx.Done()
-	log.Println("gracefull shutdown...)")
+	Log.Info("gracefull shutdown...)")
 	<-time.NewTimer(cfg.GracefullShutdownTimeout).C
 }

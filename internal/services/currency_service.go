@@ -3,13 +3,12 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"net/http"
 	"sync"
 	"time"
-
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
@@ -34,7 +33,6 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		for i := 0; i < len(currencies); i++ {
 			mcurrencies[currencies[i].Code] = currencies[i]
 		}
-		log.Println("CURRENCIES:", mcurrencies)
 		return &currencyService{
 			currencies:        mcurrencies,
 			currenciesStorage: currenciesStorage,
@@ -47,7 +45,6 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		if err := cs.updateCurrencies(context.Background()); err != nil {
 			return nil, err
 		}
-		log.Println("CURRENCIES AFTER LOAD:", cs.currencies)
 		return cs, nil
 	}
 }
@@ -66,7 +63,6 @@ func (cs *currencyService) GetAll() []model.Currency {
 	for _, v := range cs.currencies {
 		result = append(result, v)
 	}
-	log.Println("RETURN CURRENCIES:", result)
 	return result
 }
 
@@ -103,10 +99,10 @@ func (s *currencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateI
 			select {
 			case <-ticker.C:
 				if err := s.updateCurrencies(ctx); err != nil {
-					fmt.Printf("error on update currencies, %v\n", err)
+					Log.Error("error on update currencies", zap.Error(err))
 				}
 			case <-ctx.Done():
-				fmt.Printf("cancel update currencies job")
+				Log.Info("cancel update currencies job")
 				return
 			}
 		}
@@ -151,7 +147,7 @@ func (s *currencyService) updateCurrencies(ctx context.Context) error {
 		return err
 	}
 	s.currencies = mapCt
-	fmt.Println("CURRENCIES UPDATED: ", s.currencies)
+
 	return nil
 }
 

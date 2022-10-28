@@ -1,9 +1,7 @@
 package services
 
 import (
-	"log"
 	"time"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
@@ -52,15 +50,11 @@ func (s *spendingService) SaveTx(spending model.Spending) (decimal.Decimal, erro
 	err := pgdatabase.RunInTx(
 		func(tx *sqlx.Tx) error {
 			var err error
-			log.Println("start DecreaseBalanceTx")
 			balanceAfter, err = s.stateService.DecreaseBalanceTx(tx, spending.Value)
-			log.Println("end DecreaseBalanceTx")
 			return err
 		},
 		func(tx *sqlx.Tx) error {
-			log.Println("start SaveTx")
 			err := s.spendingStorage.SaveTx(tx, spending)
-			log.Println("end SaveTx")
 			return err
 		},
 	)

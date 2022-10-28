@@ -9,6 +9,7 @@ require (
 	github.com/lib/pq v1.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.0
+	go.uber.org/zap v1.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -42,6 +43,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9 // indirect
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect

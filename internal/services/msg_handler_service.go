@@ -2,11 +2,11 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"fmt"
 
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
