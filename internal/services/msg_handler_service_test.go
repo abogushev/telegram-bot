@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func Test_OnStartCommand_ShouldAnswerWithIntroMessage(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/start",
 		UserID: 123,
-	})
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -50,7 +51,7 @@ func Test_OnUnknownCommand_ShouldAnswerWithHelpMessage(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "some text",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -71,7 +72,7 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 01-01-2000",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -93,7 +94,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberCatValue(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add q 1 01-01-2000",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -115,7 +116,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberSumValue(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 q 01-01-2000",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -137,7 +138,7 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 99 1 qwe",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -161,7 +162,7 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 1 01-01-2000",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -178,7 +179,7 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	reportData := make(map[string]decimal.Decimal)
 	reportData["food"] = decimal.NewFromInt(1)
 	reportData["other"] = decimal.NewFromInt(2)
-	storage.EXPECT().GetStatsBy(start, end).Return(reportData, "rub", nil)
+	storage.EXPECT().GetStatsBy(gomock.Any(),start, end).Return(reportData, "rub", nil)
 	handlerService := NewMessageHandlerService(
 		sender,
 		storage,
@@ -190,7 +191,7 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/report w",
 		UserID: 123,
-	})
+		}, context.TODO())
 
 	assert.NoError(t, err)
 }

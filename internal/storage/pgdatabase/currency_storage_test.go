@@ -33,19 +33,21 @@ func SetupTestDatabase() testcontainers.Container {
 		},
 	}
 
-	dbContainer, _ := testcontainers.GenericContainer(
+	dbContainer, err := testcontainers.GenericContainer(
 		context.Background(),
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: containerReq,
 			Started:          true,
 		})
 
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	host, _ := dbContainer.Host(context.Background())
 	port, _ := dbContainer.MappedPort(context.Background(), "5432")
 
 	DBURL = fmt.Sprintf("postgres://postgres:postgres@%v:%v/testdb?sslmode=disable", host, port.Port())
-
-	var err error
 
 	DB, err = InitDB(context.Background(), DBURL)
 
@@ -96,7 +98,7 @@ func Test_GetCurrency(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			BeforeTest()
 			tt.prepareF()
-			ctype, err := storage.GetCurrentCurrency()
+			ctype, err := storage.GetCurrentCurrency(context.Background())
 			assert.ErrorIs(t, err, tt.err)
 
 			assert.Equal(t, ctype.Code, tt.ctype.Code)

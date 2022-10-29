@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
@@ -96,7 +97,9 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Contex
 		span = span.SetOperationName("msg_handler: handle cmd `/categories`")
 	case "/report":
 		resp = handleF(tokens, 2, func(tkns []string) (string, error) {
-			return s.handleReport(tkns, spanCtx)
+			r, err := s.handleReport(tkns, spanCtx)
+			ext.Error.Set(span, err != nil)
+			return r, err
 		})
 		span = span.SetOperationName("msg_handler: handle cmd `/report`")
 	case "/currencies":

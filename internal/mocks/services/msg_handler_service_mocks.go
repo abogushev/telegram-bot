@@ -5,6 +5,7 @@
 package mock_services
 
 import (
+	context "context"
 	reflect "reflect"
 	time "time"
 
@@ -74,9 +75,9 @@ func (m *MockSpendingService) EXPECT() *MockSpendingServiceMockRecorder {
 }
 
 // GetStatsBy mocks base method.
-func (m *MockSpendingService) GetStatsBy(arg0, arg1 time.Time) (map[string]decimal.Decimal, string, error) {
+func (m *MockSpendingService) GetStatsBy(arg0 context.Context, arg1, arg2 time.Time) (map[string]decimal.Decimal, string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStatsBy", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetStatsBy", arg0, arg1, arg2)
 	ret0, _ := ret[0].(map[string]decimal.Decimal)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
@@ -84,9 +85,9 @@ func (m *MockSpendingService) GetStatsBy(arg0, arg1 time.Time) (map[string]decim
 }
 
 // GetStatsBy indicates an expected call of GetStatsBy.
-func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0, arg1, arg2)
 }
 
 // SaveTx mocks base method.

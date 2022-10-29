@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
 	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
@@ -18,6 +21,7 @@ import (
 
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	http.Handle("/metrics", promhttp.Handler())
 
 	observability.InitTracing(Log, "tg-bot")
 
@@ -79,6 +83,13 @@ func main() {
 	Log.Info("init msg handler")
 
 	go tgClient.ListenUpdates(handler, ctx)
+
+	go func() {
+		err := http.ListenAndServe(fmt.Sprintf(":%d", 8080), nil)
+		if err != nil {
+			Log.Fatal("error starting http server", zap.Error(err))
+		}
+	}()
 
 	<-ctx.Done()
 	Log.Info("gracefull shutdown...)")
