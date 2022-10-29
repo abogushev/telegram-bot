@@ -2,13 +2,15 @@ package tg
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"sync"
-	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
+	"go.uber.org/zap"
 )
 
 type Client struct {
@@ -55,13 +57,16 @@ func (c *Client) ListenUpdates(handler *services.MessageHandlerService, ctx cont
 				if update.Message != nil { // If we got a message
 					Log.Info("inocming msg", zap.String("username", update.Message.From.UserName), zap.String("text", update.Message.Text))
 
+					span, newCtx := opentracing.StartSpanFromContext(ctx, "handling message")
+
 					err := handler.HandleMsg(&model.Message{
 						Text:   update.Message.Text,
 						UserID: update.Message.From.ID,
-					})
+					}, newCtx)
 					if err != nil {
 						Log.Error("error processing message:", zap.Error(err))
 					}
+					span.Finish()
 				}
 			}
 		}

@@ -1,13 +1,15 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
@@ -18,7 +20,7 @@ type MessageSender interface {
 
 type SpendingService interface {
 	SaveTx(model.Spending) (decimal.Decimal, error)
-	GetStatsBy(time.Time, time.Time) (map[string]decimal.Decimal, string, error)
+	GetStatsBy(context.Context, time.Time, time.Time) (map[string]decimal.Decimal, string, error)
 }
 
 type CurrencyService interface {
@@ -67,7 +69,11 @@ func NewMessageHandlerService(
 	}
 }
 
-func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
+func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Context) error {
+	span, spanCtx := opentracing.StartSpanFromContext(ctx, "")
+
+	defer span.Finish()
+
 	tokens := strings.Split(msg.Text, " ")
 	if len(tokens) == 0 {
 		return nil
@@ -77,28 +83,31 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message) error {
 	switch tokens[0] {
 	case "/start":
 		resp = "hello"
+		span = span.SetOperationName("msg_handler: handle cmd `/start`")
 
 	case "/help":
 		resp = helpMsg
-
+		span = span.SetOperationName("msg_handler: handle cmd `/help`")
 	case "/add":
 		resp = handleF(tokens, 4, s.handleAdd)
-
+		span = span.SetOperationName("msg_handler: handle cmd `/add`")
 	case "/categories":
 		resp = s.handleCategories()
-
+		span = span.SetOperationName("msg_handler: handle cmd `/categories`")
 	case "/report":
-		resp = handleF(tokens, 2, s.handleReport)
-
+		resp = handleF(tokens, 2, func(tkns []string) (string, error) {
+			return s.handleReport(tkns, spanCtx)
+		})
+		span = span.SetOperationName("msg_handler: handle cmd `/report`")
 	case "/currencies":
 		resp = s.handleCurrencies()
-
+		span = span.SetOperationName("msg_handler: handle cmd `/currencies`")
 	case "/currency":
 		resp = handleF(tokens, 2, s.handleCurrencyChange)
-
+		span = span.SetOperationName("msg_handler: handle cmd `/currency`")
 	case "/balance":
 		resp = s.handleBalance()
-
+		span = span.SetOperationName("msg_handler: handle cmd `/balance`")
 	default:
 		resp = "не знаю эту команду"
 	}
@@ -174,7 +183,7 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 	return fmt.Sprintf("added, current balance: %v", balanceAfter), nil
 }
 
-func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
+func (s *MessageHandlerService) handleReport(strs []string, spanCtx context.Context) (string, error) {
 	endAt := time.Now().Truncate(24 * time.Hour)
 	var startAt time.Time
 
@@ -189,10 +198,10 @@ func (s *MessageHandlerService) handleReport(strs []string) (string, error) {
 		return "", errWrongFormat
 	}
 
-	if data, c, err := s.spendingService.GetStatsBy(startAt, endAt); err != nil {
+	if data, c, err := s.spendingService.GetStatsBy(spanCtx, startAt, endAt); err != nil {
 		return "", err
 	} else {
-		return formatStats(startAt, endAt, data, c), nil
+		return formatStats(spanCtx, startAt, endAt, data, c), nil
 	}
 }
 
@@ -203,7 +212,10 @@ func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, err
 	return "successfully changed", nil
 }
 
-func formatStats(start time.Time, end time.Time, r map[string]decimal.Decimal, currencyCode string) string {
+func formatStats(spanCtx context.Context, start time.Time, end time.Time, r map[string]decimal.Decimal, currencyCode string) string {
+	span, _ := opentracing.StartSpanFromContext(spanCtx, "msg_handler: formatStats response")
+	defer span.Finish()
+
 	if len(r) != 0 {
 		result := fmt.Sprintf("from: %v, to: %v\n", start.Format(dtTemplate), end.Format(dtTemplate))
 		cats := make([]string, 0, len(r))

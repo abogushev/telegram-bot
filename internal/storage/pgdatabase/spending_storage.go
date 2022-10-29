@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/opentracing/opentracing-go"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
@@ -29,7 +30,10 @@ func (s *dbSpendingStorage) SaveTx(tx *sqlx.Tx, spending model.Spending) error {
 	return nil
 }
 
-func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
+func (s *dbSpendingStorage) GetStatsBy(ctx context.Context, startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "storage: getting report")
+	defer span.Finish()
+
 	results := []struct {
 		Name  string          `db:"name"`
 		Value decimal.Decimal `db:"value"`

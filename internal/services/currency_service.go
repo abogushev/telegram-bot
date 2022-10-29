@@ -3,14 +3,15 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"sync"
 	"time"
-	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+
 	"github.com/shopspring/decimal"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
+	"go.uber.org/zap"
 )
 
 var url = "https://api.currencyapi.com/v3/latest?apikey=dO62Nn8Y3f18mpvbN6ypoaBrzEtKF8Fkd8bdavYy&currencies=EUR%2CUSD%2CCNY&base_currency=RUB"
@@ -50,7 +51,7 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 }
 
 type currenciesStorage interface {
-	GetCurrentCurrency() (model.Currency, error)
+	GetCurrentCurrency(ctx context.Context) (model.Currency, error)
 	GetCurrencies() ([]model.Currency, error)
 	UpdateCurrencies([]model.Currency) error
 	UpdateCurrentCurrency(name string) error
@@ -73,8 +74,8 @@ func (cs *currencyService) CheckCurrencyCode(code string) bool {
 	return ok
 }
 
-func (cs *currencyService) GetCurrentCurrency() (model.Currency, error) {
-	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency()
+func (cs *currencyService) GetCurrentCurrency(ctx context.Context) (model.Currency, error) {
+	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency(ctx)
 	if err != nil {
 		return model.Currency{}, err
 	}

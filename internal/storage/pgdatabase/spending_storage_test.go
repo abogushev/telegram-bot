@@ -72,7 +72,7 @@ func Test_GetStatsBy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			BeforeTest()
 			tt.prepareF(tt.startAt, tt.endAt)
-			tt.checkF(storage.GetStatsBy(tt.startAt, tt.endAt))
+			tt.checkF(storage.GetStatsBy(context.TODO(), tt.startAt, tt.endAt))
 		})
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 var Log *zap.Logger
 
-func init()  {
+func init() {
 	cfg := zap.NewProductionConfig()
 	cfg.DisableCaller = true
 	cfg.DisableStacktrace = true

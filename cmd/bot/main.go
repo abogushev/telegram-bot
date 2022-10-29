@@ -2,20 +2,24 @@ package main
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"os/signal"
 	"syscall"
 	"time"
-	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/observability"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase/migrations"
+	"go.uber.org/zap"
 )
 
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	observability.InitTracing(Log, "tg-bot")
 
 	cfg, err := config.New()
 	if err != nil {

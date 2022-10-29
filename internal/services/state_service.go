@@ -2,12 +2,13 @@ package services
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"time"
-	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
+	"go.uber.org/zap"
 )
 
 type stateStorage interface {
