@@ -2,6 +2,7 @@ package pgdatabase
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/opentracing/opentracing-go"
@@ -23,6 +24,7 @@ func (s *dbCurrencyStorage) GetCurrentCurrency(ctx context.Context) (model.Curre
 	var c model.Currency
 	q := "select code, ratio from currencies where code = (select current_currency_code from state)"
 	if err := s.db.GetContext(s.ctx, &c, q); err != nil {
+		ext.Error.Set(span, true)
 		return model.Currency{}, err
 	}
 	return c, nil

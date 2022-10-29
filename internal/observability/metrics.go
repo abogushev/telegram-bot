@@ -45,7 +45,6 @@ func LogRequest(f func() error) {
 	TotalRequests.Inc()
 	InFlightRequests.Inc()
 	err := f()
-	time.Sleep(3 * time.Second)
 	InFlightRequests.Dec()
 	duration := time.Since(startTime)
 

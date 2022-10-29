@@ -2,6 +2,7 @@ package tg
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/ext"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -68,6 +69,7 @@ func (c *Client) ListenUpdates(handler *services.MessageHandlerService, ctx cont
 						}, newCtx)
 						if err != nil {
 							Log.Error("error processing message:", zap.Error(err))
+							ext.Error.Set(span, true)
 						}
 						return err
 					})

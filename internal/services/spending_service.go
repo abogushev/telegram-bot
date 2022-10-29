@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/ext"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -70,11 +71,13 @@ func (s *spendingService) GetStatsBy(ctx context.Context, start, end time.Time) 
 
 	data, err := s.spendingStorage.GetStatsBy(childContext, start, end)
 	if err != nil {
+		ext.Error.Set(span, true)
 		return nil, "", err
 	}
 	rs := make(map[string]decimal.Decimal)
 	ct, err := s.currencyService.GetCurrentCurrency(childContext)
 	if err != nil {
+		ext.Error.Set(span, true)
 		return nil, "", err
 	}
 	for k, v := range data {
