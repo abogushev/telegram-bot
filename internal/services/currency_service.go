@@ -3,15 +3,15 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
+	"go.uber.org/zap"
 )
 
 var url = "https://api.currencyapi.com/v3/latest?apikey=dO62Nn8Y3f18mpvbN6ypoaBrzEtKF8Fkd8bdavYy&currencies=EUR%2CUSD%2CCNY&base_currency=RUB"
@@ -34,7 +34,6 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		for i := 0; i < len(currencies); i++ {
 			mcurrencies[currencies[i].Code] = currencies[i]
 		}
-		log.Println("CURRENCIES:", mcurrencies)
 		return &currencyService{
 			currencies:        mcurrencies,
 			currenciesStorage: currenciesStorage,
@@ -47,13 +46,12 @@ func NewCurrencyService(currenciesStorage currenciesStorage) (*currencyService, 
 		if err := cs.updateCurrencies(context.Background()); err != nil {
 			return nil, err
 		}
-		log.Println("CURRENCIES AFTER LOAD:", cs.currencies)
 		return cs, nil
 	}
 }
 
 type currenciesStorage interface {
-	GetCurrentCurrency() (model.Currency, error)
+	GetCurrentCurrency(ctx context.Context) (model.Currency, error)
 	GetCurrencies() ([]model.Currency, error)
 	UpdateCurrencies([]model.Currency) error
 	UpdateCurrentCurrency(name string) error
@@ -66,7 +64,6 @@ func (cs *currencyService) GetAll() []model.Currency {
 	for _, v := range cs.currencies {
 		result = append(result, v)
 	}
-	log.Println("RETURN CURRENCIES:", result)
 	return result
 }
 
@@ -77,8 +74,8 @@ func (cs *currencyService) CheckCurrencyCode(code string) bool {
 	return ok
 }
 
-func (cs *currencyService) GetCurrentCurrency() (model.Currency, error) {
-	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency()
+func (cs *currencyService) GetCurrentCurrency(ctx context.Context) (model.Currency, error) {
+	currentCurrency, err := cs.currenciesStorage.GetCurrentCurrency(ctx)
 	if err != nil {
 		return model.Currency{}, err
 	}
@@ -103,10 +100,10 @@ func (s *currencyService) RunUpdateCurrenciesDaemon(ctx context.Context, updateI
 			select {
 			case <-ticker.C:
 				if err := s.updateCurrencies(ctx); err != nil {
-					fmt.Printf("error on update currencies, %v\n", err)
+					Log.Error("error on update currencies", zap.Error(err))
 				}
 			case <-ctx.Done():
-				fmt.Printf("cancel update currencies job")
+				Log.Info("cancel update currencies job")
 				return
 			}
 		}
@@ -151,7 +148,7 @@ func (s *currencyService) updateCurrencies(ctx context.Context) error {
 		return err
 	}
 	s.currencies = mapCt
-	fmt.Println("CURRENCIES UPDATED: ", s.currencies)
+
 	return nil
 }
 

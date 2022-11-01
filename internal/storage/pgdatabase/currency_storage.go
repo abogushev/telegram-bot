@@ -2,8 +2,10 @@ package pgdatabase
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/opentracing/opentracing-go"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
@@ -16,10 +18,13 @@ func NewCurrencyStorage(ctx context.Context, db *sqlx.DB) *dbCurrencyStorage {
 	return &dbCurrencyStorage{ctx: ctx, db: db}
 }
 
-func (s *dbCurrencyStorage) GetCurrentCurrency() (model.Currency, error) {
+func (s *dbCurrencyStorage) GetCurrentCurrency(ctx context.Context) (model.Currency, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "currency_storage: GetCurrentCurrency")
+	defer span.Finish()
 	var c model.Currency
 	q := "select code, ratio from currencies where code = (select current_currency_code from state)"
 	if err := s.db.GetContext(s.ctx, &c, q); err != nil {
+		ext.Error.Set(span, true)
 		return model.Currency{}, err
 	}
 	return c, nil

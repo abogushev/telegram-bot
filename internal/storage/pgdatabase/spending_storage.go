@@ -2,9 +2,11 @@ package pgdatabase
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go/ext"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/opentracing/opentracing-go"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
@@ -29,7 +31,10 @@ func (s *dbSpendingStorage) SaveTx(tx *sqlx.Tx, spending model.Spending) error {
 	return nil
 }
 
-func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
+func (s *dbSpendingStorage) GetStatsBy(ctx context.Context, startAt, endAt time.Time) (map[string]decimal.Decimal, error) {
+	span, _ := opentracing.StartSpanFromContext(ctx, "storage: getting report")
+	defer span.Finish()
+
 	results := []struct {
 		Name  string          `db:"name"`
 		Value decimal.Decimal `db:"value"`
@@ -37,6 +42,7 @@ func (s *dbSpendingStorage) GetStatsBy(startAt, endAt time.Time) (map[string]dec
 
 	q := "select categories.name as name, sum(spendings.value) as value from spendings inner join categories on spendings.category_id = categories.id where date between $1 and $2 group by categories.name"
 	if err := s.db.Select(&results, q, startAt, endAt); err != nil {
+		ext.Error.Set(span, true)
 		return nil, err
 	}
 

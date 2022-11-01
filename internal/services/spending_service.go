@@ -1,10 +1,12 @@
 package services
 
 import (
-	"log"
+	"context"
+	"github.com/opentracing/opentracing-go/ext"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/opentracing/opentracing-go"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
@@ -13,11 +15,11 @@ import (
 type spendingStorageI interface {
 	Save(model.Spending) error
 	SaveTx(tx *sqlx.Tx, spending model.Spending) error
-	GetStatsBy(time.Time, time.Time) (map[string]decimal.Decimal, error)
+	GetStatsBy(context.Context, time.Time, time.Time) (map[string]decimal.Decimal, error)
 }
 
 type currencyServiceI interface {
-	GetCurrentCurrency() (model.Currency, error)
+	GetCurrentCurrency(ctx context.Context) (model.Currency, error)
 }
 type stateServiceI interface {
 	DecreaseBalanceTx(tx *sqlx.Tx, v decimal.Decimal) (decimal.Decimal, error)
@@ -33,7 +35,7 @@ func NewSpendingService(spendingStorage spendingStorageI, currencyService curren
 }
 
 func (s *spendingService) Save(spending model.Spending) error {
-	if cur, err := s.currencyService.GetCurrentCurrency(); err != nil {
+	if cur, err := s.currencyService.GetCurrentCurrency(context.TODO()); err != nil {
 		return err
 	} else {
 		spending.Value = spending.Value.Div(cur.Ratio)
@@ -42,7 +44,7 @@ func (s *spendingService) Save(spending model.Spending) error {
 }
 
 func (s *spendingService) SaveTx(spending model.Spending) (decimal.Decimal, error) {
-	if cur, err := s.currencyService.GetCurrentCurrency(); err != nil {
+	if cur, err := s.currencyService.GetCurrentCurrency(context.TODO()); err != nil {
 		return decimal.Decimal{}, err
 	} else {
 		spending.Value = spending.Value.Div(cur.Ratio)
@@ -52,29 +54,30 @@ func (s *spendingService) SaveTx(spending model.Spending) (decimal.Decimal, erro
 	err := pgdatabase.RunInTx(
 		func(tx *sqlx.Tx) error {
 			var err error
-			log.Println("start DecreaseBalanceTx")
 			balanceAfter, err = s.stateService.DecreaseBalanceTx(tx, spending.Value)
-			log.Println("end DecreaseBalanceTx")
 			return err
 		},
 		func(tx *sqlx.Tx) error {
-			log.Println("start SaveTx")
 			err := s.spendingStorage.SaveTx(tx, spending)
-			log.Println("end SaveTx")
 			return err
 		},
 	)
 	return balanceAfter, err
 }
 
-func (s *spendingService) GetStatsBy(start, end time.Time) (map[string]decimal.Decimal, string, error) {
-	data, err := s.spendingStorage.GetStatsBy(start, end)
+func (s *spendingService) GetStatsBy(ctx context.Context, start, end time.Time) (map[string]decimal.Decimal, string, error) {
+	span, childContext := opentracing.StartSpanFromContext(ctx, "spending_service: getting report")
+	defer span.Finish()
+
+	data, err := s.spendingStorage.GetStatsBy(childContext, start, end)
 	if err != nil {
+		ext.Error.Set(span, true)
 		return nil, "", err
 	}
 	rs := make(map[string]decimal.Decimal)
-	ct, err := s.currencyService.GetCurrentCurrency()
+	ct, err := s.currencyService.GetCurrentCurrency(childContext)
 	if err != nil {
+		ext.Error.Set(span, true)
 		return nil, "", err
 	}
 	for k, v := range data {
