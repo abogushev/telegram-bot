@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/cache"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/cache"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
 	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"

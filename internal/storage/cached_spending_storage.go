@@ -48,6 +48,9 @@ func (s *CachedSpendingStorage) GetStatsBy(ctx context.Context, start time.Time,
 	}
 
 	reports, err := model.FromJSON(cacheResult)
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < len(reports); i++ {
 		if time_util.DatesEq(reports[i].Start, start) && time_util.DatesEq(reports[i].End, end) {
 			return reports[i].Data, nil

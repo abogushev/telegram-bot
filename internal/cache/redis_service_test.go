@@ -54,7 +54,7 @@ func TestIntegrationSetGetDel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer redisContainer.Terminate(ctx)
+	defer func() { _ = redisContainer.Terminate(ctx) }()
 
 	client, err := NewRedisCache(ctx, redisContainer.host, redisContainer.port)
 	if err != nil {
