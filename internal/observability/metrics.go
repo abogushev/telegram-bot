@@ -34,7 +34,7 @@ var (
 			Namespace: "tgbot",
 			Subsystem: "msg_handler",
 			Name:      "histogram_response_time_seconds",
-			Buckets: prometheus.ExponentialBuckets(0.0001, 2, 16),
+			Buckets:   prometheus.ExponentialBuckets(0.0001, 2, 16),
 		},
 		[]string{"code"},
 	)
@@ -49,7 +49,7 @@ func LogRequest(f func() error) {
 	duration := time.Since(startTime)
 
 	code := ""
-	 if err != nil {
+	if err != nil {
 		code = "error"
 	} else {
 		code = "ok"

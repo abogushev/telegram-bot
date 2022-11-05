@@ -19,7 +19,7 @@ type MessageSender interface {
 	SendMessage(text string, userID int64) error
 }
 
-type SpendingService interface {
+type SpendingServiceI interface {
 	SaveTx(model.Spending) (decimal.Decimal, error)
 	GetStatsBy(context.Context, time.Time, time.Time) (map[string]decimal.Decimal, string, error)
 }
@@ -37,7 +37,7 @@ type StateService interface {
 }
 type MessageHandlerService struct {
 	tgClient        MessageSender
-	spendingService SpendingService
+	spendingService SpendingServiceI
 	currencyService CurrencyService
 	categoryService CategoryService
 	stateService    StateService
@@ -56,7 +56,7 @@ var dtTemplate = "02-01-2006"
 
 func NewMessageHandlerService(
 	tgClient MessageSender,
-	spendingService SpendingService,
+	spendingService SpendingServiceI,
 	currencyService CurrencyService,
 	categoryService CategoryService,
 	stateService StateService) *MessageHandlerService {

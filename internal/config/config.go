@@ -14,6 +14,8 @@ type Config struct {
 	Token                    string        `yaml:"token"`
 	GracefullShutdownTimeout time.Duration `yaml:"gracefull_shutdown_timeout"`
 	UpdateCurrenciesInterval time.Duration `yaml:"update_currencies_interval"`
+	CacheHost                string        `yaml:"cache_host"`
+	CachePort                int           `yaml:"cache_port"`
 }
 
 func New() (*Config, error) {
