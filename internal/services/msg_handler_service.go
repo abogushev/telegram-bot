@@ -84,29 +84,28 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Contex
 	switch tokens[0] {
 	case "/start":
 		resp = "hello"
-		span = span.SetOperationName("msg_handler: handle cmd `/start`")
-
+		span.SetOperationName("msg_handler: handle cmd `/start`")
 	case "/help":
 		resp = helpMsg
-		span = span.SetOperationName("msg_handler: handle cmd `/help`")
+		span.SetOperationName("msg_handler: handle cmd `/help`")
 	case "/add":
 		resp = handleF(span, spanCtx, tokens, 4, s.handleAdd)
-		span = span.SetOperationName("msg_handler: handle cmd `/add`")
+		span.SetOperationName("msg_handler: handle cmd `/add`")
 	case "/categories":
 		resp = s.handleCategories()
-		span = span.SetOperationName("msg_handler: handle cmd `/categories`")
+		span.SetOperationName("msg_handler: handle cmd `/categories`")
 	case "/report":
 		resp = handleF(span, spanCtx, tokens, 2, s.handleReport)
-		span = span.SetOperationName("msg_handler: handle cmd `/report`")
+		span.SetOperationName("msg_handler: handle cmd `/report`")
 	case "/currencies":
 		resp = s.handleCurrencies()
-		span = span.SetOperationName("msg_handler: handle cmd `/currencies`")
+		span.SetOperationName("msg_handler: handle cmd `/currencies`")
 	case "/currency":
 		resp = handleF(span, spanCtx, tokens, 2, s.handleCurrencyChange)
-		span = span.SetOperationName("msg_handler: handle cmd `/currency`")
+		span.SetOperationName("msg_handler: handle cmd `/currency`")
 	case "/balance":
 		resp = s.handleBalance()
-		span = span.SetOperationName("msg_handler: handle cmd `/balance`")
+		span.SetOperationName("msg_handler: handle cmd `/balance`")
 	default:
 		resp = "не знаю эту команду"
 	}
