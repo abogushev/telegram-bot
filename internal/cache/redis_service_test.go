@@ -56,7 +56,7 @@ func TestIntegrationSetGetDel(t *testing.T) {
 	}
 	defer func() { _ = redisContainer.Terminate(ctx) }()
 
-	client, err := NewRedisCache(ctx, redisContainer.host, redisContainer.port)
+	client, err := NewRedisCache(redisContainer.host, redisContainer.port)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,15 +66,15 @@ func TestIntegrationSetGetDel(t *testing.T) {
 	value := "value"
 	ttl, _ := time.ParseDuration("2h")
 
-	assert.NoError(t, client.Set(key, value, ttl))
+	assert.NoError(t, client.Set(ctx, key, value, ttl))
 
 	// Get data
-	savedValue, err := client.Get(key)
+	savedValue, err := client.Get(ctx, key)
 	assert.NoError(t, err)
 	assert.Equal(t, value, savedValue)
 
-	assert.NoError(t, client.Delete(key))
+	assert.NoError(t, client.Delete(ctx, key))
 
-	_, err = client.Get(key)
+	_, err = client.Get(ctx, key)
 	assert.ErrorIs(t, err, ErrNotFound)
 }

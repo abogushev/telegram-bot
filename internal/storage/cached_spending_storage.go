@@ -11,9 +11,9 @@ import (
 )
 
 type cacheI interface {
-	Get(string) (string, error)
-	Set(string, string, time.Duration) error
-	Delete(string) error
+	Get(context.Context, string) (string, error)
+	Set(context.Context, string, string, time.Duration) error
+	Delete(context.Context, string) error
 }
 type spendingStorageI interface {
 	SaveTx(tx *sqlx.Tx, spending model.Spending) error
@@ -31,15 +31,15 @@ func NewCachedSpendingStorage(storage spendingStorageI, cacheI cacheI) *CachedSp
 	return &CachedSpendingStorage{targetStorage: storage, cache: cacheI}
 }
 
-func (s *CachedSpendingStorage) SaveTx(tx *sqlx.Tx, spending model.Spending) error {
-	if err := s.cache.Delete(cacheKey); err != nil {
+func (s *CachedSpendingStorage) SaveTx(ctx context.Context, tx *sqlx.Tx, spending model.Spending) error {
+	if err := s.cache.Delete(ctx, cacheKey); err != nil {
 		return err
 	}
 	return s.targetStorage.SaveTx(tx, spending)
 }
 
 func (s *CachedSpendingStorage) GetStatsBy(ctx context.Context, start time.Time, end time.Time) (map[string]decimal.Decimal, error) {
-	cacheResult, err := s.cache.Get(cacheKey)
+	cacheResult, err := s.cache.Get(ctx, cacheKey)
 	if err != nil && err != cache.ErrNotFound {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (s *CachedSpendingStorage) refreshCache(ctx context.Context, start, end tim
 		return nil, err
 	}
 
-	if err := s.cache.Set(cacheKey, js, time.Hour); err != nil {
+	if err := s.cache.Set(ctx, cacheKey, js, time.Hour); err != nil {
 		return nil, err
 	}
 	return result, nil

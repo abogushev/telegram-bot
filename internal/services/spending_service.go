@@ -13,7 +13,7 @@ import (
 )
 
 type spendingStorageI interface {
-	SaveTx(tx *sqlx.Tx, spending model.Spending) error
+	SaveTx(context.Context, *sqlx.Tx, model.Spending) error
 	GetStatsBy(context.Context, time.Time, time.Time) (map[string]decimal.Decimal, error)
 }
 
@@ -37,7 +37,7 @@ func NewSpendingService(
 	return &SpendingService{spendingStorage, currencyService, stateServiceTx}
 }
 
-func (s *SpendingService) saveSpendingTxFuncs(balanceAfter *decimal.Decimal, spending model.Spending) []func(tx *sqlx.Tx) error {
+func (s *SpendingService) saveSpendingTxFuncs(ctx context.Context, balanceAfter *decimal.Decimal, spending model.Spending) []func(tx *sqlx.Tx) error {
 	return []func(tx *sqlx.Tx) error{
 		func(tx *sqlx.Tx) error {
 			var err error
@@ -45,13 +45,13 @@ func (s *SpendingService) saveSpendingTxFuncs(balanceAfter *decimal.Decimal, spe
 			return err
 		},
 		func(tx *sqlx.Tx) error {
-			err := s.spendingStorage.SaveTx(tx, spending)
+			err := s.spendingStorage.SaveTx(ctx, tx, spending)
 			return err
 		},
 	}
 }
 
-func (s *SpendingService) SaveTx(spending model.Spending) (decimal.Decimal, error) {
+func (s *SpendingService) SaveTx(ctx context.Context, spending model.Spending) (decimal.Decimal, error) {
 	if cur, err := s.currencyService.GetCurrentCurrency(context.TODO()); err != nil {
 		return decimal.Decimal{}, err
 	} else {
@@ -59,7 +59,7 @@ func (s *SpendingService) SaveTx(spending model.Spending) (decimal.Decimal, erro
 	}
 
 	var balanceAfter decimal.Decimal
-	err := pgdatabase.RunInTx(s.saveSpendingTxFuncs(&balanceAfter, spending)...)
+	err := pgdatabase.RunInTx(s.saveSpendingTxFuncs(ctx, &balanceAfter, spending)...)
 	return balanceAfter, err
 }
 

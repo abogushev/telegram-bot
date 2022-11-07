@@ -50,7 +50,7 @@ func main() {
 
 	Log.Info("init db")
 
-	redisClient, err := cache.NewRedisCache(ctx, cfg.CacheHost, cfg.CachePort)
+	redisClient, err := cache.NewRedisCache(cfg.CacheHost, cfg.CachePort)
 	if err != nil {
 		Log.Fatal("redis init failed:", zap.Error(err))
 	}

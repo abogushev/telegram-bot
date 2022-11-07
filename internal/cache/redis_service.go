@@ -8,29 +8,28 @@ import (
 	"github.com/go-redis/redis/v9"
 )
 
-type redisService struct {
+type RedisService struct {
 	client *redis.Client
-	ctx    context.Context
 }
 
 var ErrNotFound = redis.Nil
 
-func NewRedisCache(ctx context.Context, host string, port int) (*redisService, error) {
+func NewRedisCache(host string, port int) (*RedisService, error) {
 	options, err := redis.ParseURL(fmt.Sprintf("redis://%s:%v", host, port))
 	if err != nil {
 		return nil, err
 	}
-	return &redisService{client: redis.NewClient(options), ctx: ctx}, nil
+	return &RedisService{client: redis.NewClient(options)}, nil
 }
 
-func (r *redisService) Set(key, value string, ttl time.Duration) error {
-	return r.client.Set(r.ctx, key, value, ttl).Err()
+func (r *RedisService) Set(ctx context.Context, key, value string, ttl time.Duration) error {
+	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
-func (r *redisService) Get(key string) (string, error) {
-	return r.client.Get(r.ctx, key).Result()
+func (r *RedisService) Get(ctx context.Context, key string) (string, error) {
+	return r.client.Get(ctx, key).Result()
 }
 
-func (r *redisService) Delete(key string) error {
-	return r.client.Del(r.ctx, key).Err()
+func (r *RedisService) Delete(ctx context.Context, key string) error {
+	return r.client.Del(ctx, key).Err()
 }
