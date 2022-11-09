@@ -2,11 +2,11 @@ package tg
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go/ext"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
 	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"

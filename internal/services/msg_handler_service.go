@@ -19,8 +19,8 @@ type MessageSender interface {
 	SendMessage(text string, userID int64) error
 }
 
-type SpendingService interface {
-	SaveTx(model.Spending) (decimal.Decimal, error)
+type SpendingServiceI interface {
+	SaveTx(context.Context, model.Spending) (decimal.Decimal, error)
 	GetStatsBy(context.Context, time.Time, time.Time) (map[string]decimal.Decimal, string, error)
 }
 
@@ -37,7 +37,7 @@ type StateService interface {
 }
 type MessageHandlerService struct {
 	tgClient        MessageSender
-	spendingService SpendingService
+	spendingService SpendingServiceI
 	currencyService CurrencyService
 	categoryService CategoryService
 	stateService    StateService
@@ -56,7 +56,7 @@ var dtTemplate = "02-01-2006"
 
 func NewMessageHandlerService(
 	tgClient MessageSender,
-	spendingService SpendingService,
+	spendingService SpendingServiceI,
 	currencyService CurrencyService,
 	categoryService CategoryService,
 	stateService StateService) *MessageHandlerService {
@@ -84,33 +84,28 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Contex
 	switch tokens[0] {
 	case "/start":
 		resp = "hello"
-		span = span.SetOperationName("msg_handler: handle cmd `/start`")
-
+		span.SetOperationName("msg_handler: handle cmd `/start`")
 	case "/help":
 		resp = helpMsg
-		span = span.SetOperationName("msg_handler: handle cmd `/help`")
+		span.SetOperationName("msg_handler: handle cmd `/help`")
 	case "/add":
-		resp = handleF(tokens, 4, s.handleAdd)
-		span = span.SetOperationName("msg_handler: handle cmd `/add`")
+		resp = handleF(span, spanCtx, tokens, 4, s.handleAdd)
+		span.SetOperationName("msg_handler: handle cmd `/add`")
 	case "/categories":
 		resp = s.handleCategories()
-		span = span.SetOperationName("msg_handler: handle cmd `/categories`")
+		span.SetOperationName("msg_handler: handle cmd `/categories`")
 	case "/report":
-		resp = handleF(tokens, 2, func(tkns []string) (string, error) {
-			r, err := s.handleReport(tkns, spanCtx)
-			ext.Error.Set(span, err != nil)
-			return r, err
-		})
-		span = span.SetOperationName("msg_handler: handle cmd `/report`")
+		resp = handleF(span, spanCtx, tokens, 2, s.handleReport)
+		span.SetOperationName("msg_handler: handle cmd `/report`")
 	case "/currencies":
 		resp = s.handleCurrencies()
-		span = span.SetOperationName("msg_handler: handle cmd `/currencies`")
+		span.SetOperationName("msg_handler: handle cmd `/currencies`")
 	case "/currency":
-		resp = handleF(tokens, 2, s.handleCurrencyChange)
-		span = span.SetOperationName("msg_handler: handle cmd `/currency`")
+		resp = handleF(span, spanCtx, tokens, 2, s.handleCurrencyChange)
+		span.SetOperationName("msg_handler: handle cmd `/currency`")
 	case "/balance":
 		resp = s.handleBalance()
-		span = span.SetOperationName("msg_handler: handle cmd `/balance`")
+		span.SetOperationName("msg_handler: handle cmd `/balance`")
 	default:
 		resp = "не знаю эту команду"
 	}
@@ -119,12 +114,13 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Contex
 
 var errWrongFormat = errors.New("wrong format")
 
-func handleF(strs []string, count int, handler func([]string) (string, error)) string {
+func handleF(span opentracing.Span, spanCtx context.Context, strs []string, count int, handler func(context.Context, []string) (string, error)) string {
 	if count != len(strs) {
 		return errWrongFormat.Error()
 	}
 
-	if r, err := handler(strs); err != nil {
+	if r, err := handler(spanCtx, strs); err != nil {
+		ext.Error.Set(span, true)
 		return err.Error()
 	} else {
 		return r
@@ -168,7 +164,7 @@ func (s *MessageHandlerService) handleCategories() string {
 	return genListMsg(els)
 }
 
-func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
+func (s *MessageHandlerService) handleAdd(ctx context.Context, tokens []string) (string, error) {
 	catStr := tokens[1]
 	sumStr := tokens[2]
 	dtStr := tokens[3]
@@ -180,13 +176,13 @@ func (s *MessageHandlerService) handleAdd(tokens []string) (string, error) {
 		return "", errors.New("sum  must be a number")
 	} else if dt, err := time.Parse(dtTemplate, dtStr); err != nil {
 		return "", errors.New("wrong date format")
-	} else if balanceAfter, err = s.spendingService.SaveTx(model.NewSpending(sum, cat, dt)); err != nil {
+	} else if balanceAfter, err = s.spendingService.SaveTx(ctx, model.NewSpending(sum, cat, dt)); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("added, current balance: %v", balanceAfter), nil
 }
 
-func (s *MessageHandlerService) handleReport(strs []string, spanCtx context.Context) (string, error) {
+func (s *MessageHandlerService) handleReport(spanCtx context.Context, strs []string) (string, error) {
 	endAt := time.Now().Truncate(24 * time.Hour)
 	var startAt time.Time
 
@@ -208,7 +204,7 @@ func (s *MessageHandlerService) handleReport(strs []string, spanCtx context.Cont
 	}
 }
 
-func (s *MessageHandlerService) handleCurrencyChange(strs []string) (string, error) {
+func (s *MessageHandlerService) handleCurrencyChange(ctx context.Context, strs []string) (string, error) {
 	if err := s.currencyService.UpdateCurrentCurrency(strs[1]); err != nil {
 		return "", err
 	}

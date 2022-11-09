@@ -19,7 +19,7 @@ func Test_OnStartCommand_ShouldAnswerWithIntroMessage(t *testing.T) {
 
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -42,7 +42,7 @@ func Test_OnUnknownCommand_ShouldAnswerWithHelpMessage(t *testing.T) {
 	sender.EXPECT().SendMessage("не знаю эту команду", int64(123))
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -51,7 +51,7 @@ func Test_OnUnknownCommand_ShouldAnswerWithHelpMessage(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "some text",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -63,7 +63,7 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 	sender.EXPECT().SendMessage("wrong format", int64(123))
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -72,7 +72,7 @@ func Test_OnAdd_shouldAnswerErrOnWrongCountOfTokens(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 01-01-2000",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -85,7 +85,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberCatValue(t *testing.T) {
 
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -94,7 +94,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberCatValue(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add q 1 01-01-2000",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -107,7 +107,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberSumValue(t *testing.T) {
 
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -116,7 +116,7 @@ func Test_OnAdd_shouldAnswerErrOnNonNumberSumValue(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 q 01-01-2000",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -129,7 +129,7 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 
 	handlerService := NewMessageHandlerService(
 		sender,
-		mocks.NewMockSpendingService(ctrl),
+		mocks.NewMockSpendingServiceI(ctrl),
 		mocks.NewMockCurrencyService(ctrl),
 		mocks.NewMockCategoryService(ctrl),
 		mocks.NewMockStateService(ctrl),
@@ -138,7 +138,7 @@ func Test_OnAdd_shouldAnswerErrOnBadDtFormat(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 99 1 qwe",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -148,9 +148,9 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage("added, current balance: 0", int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
+	storage := mocks.NewMockSpendingServiceI(ctrl)
 	dt, _ := time.Parse("02-01-2006", "01-01-2000")
-	storage.EXPECT().SaveTx(model.NewSpending(decimal.NewFromInt(1), 1, dt))
+	storage.EXPECT().SaveTx(gomock.Any(), model.NewSpending(decimal.NewFromInt(1), 1, dt))
 	handlerService := NewMessageHandlerService(
 		sender,
 		storage,
@@ -162,7 +162,7 @@ func Test_OnAdd_shouldSaveSuccessfull(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/add 1 1 01-01-2000",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }
@@ -174,12 +174,12 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	response := fmt.Sprintf("from: %v, to: %v\nfood - 1 rub\nother - 2 rub\n", start.Format("02-01-2006"), end.Format("02-01-2006"))
 	sender := mocks.NewMockMessageSender(ctrl)
 	sender.EXPECT().SendMessage(response, int64(123))
-	storage := mocks.NewMockSpendingService(ctrl)
+	storage := mocks.NewMockSpendingServiceI(ctrl)
 
 	reportData := make(map[string]decimal.Decimal)
 	reportData["food"] = decimal.NewFromInt(1)
 	reportData["other"] = decimal.NewFromInt(2)
-	storage.EXPECT().GetStatsBy(gomock.Any(),start, end).Return(reportData, "rub", nil)
+	storage.EXPECT().GetStatsBy(gomock.Any(), start, end).Return(reportData, "rub", nil)
 	handlerService := NewMessageHandlerService(
 		sender,
 		storage,
@@ -191,7 +191,7 @@ func Test_OnAdd_shouldReportSuccessfull(t *testing.T) {
 	err := handlerService.HandleMsg(&model.Message{
 		Text:   "/report w",
 		UserID: 123,
-		}, context.TODO())
+	}, context.TODO())
 
 	assert.NoError(t, err)
 }

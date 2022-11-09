@@ -6,6 +6,11 @@
         "program": "/usr/bin/make",
         "args": ["all"],
       },
-
+        {
+        "type": "command",
+        "name": "make format",
+        "program": "/usr/bin/make",
+        "args": ["format"],
+    },
     ]
 }

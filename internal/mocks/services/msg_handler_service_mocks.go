@@ -51,31 +51,31 @@ func (mr *MockMessageSenderMockRecorder) SendMessage(text, userID interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockMessageSender)(nil).SendMessage), text, userID)
 }
 
-// MockSpendingService is a mock of SpendingService interface.
-type MockSpendingService struct {
+// MockSpendingServiceI is a mock of SpendingServiceI interface.
+type MockSpendingServiceI struct {
 	ctrl     *gomock.Controller
-	recorder *MockSpendingServiceMockRecorder
+	recorder *MockSpendingServiceIMockRecorder
 }
 
-// MockSpendingServiceMockRecorder is the mock recorder for MockSpendingService.
-type MockSpendingServiceMockRecorder struct {
-	mock *MockSpendingService
+// MockSpendingServiceIMockRecorder is the mock recorder for MockSpendingServiceI.
+type MockSpendingServiceIMockRecorder struct {
+	mock *MockSpendingServiceI
 }
 
-// NewMockSpendingService creates a new mock instance.
-func NewMockSpendingService(ctrl *gomock.Controller) *MockSpendingService {
-	mock := &MockSpendingService{ctrl: ctrl}
-	mock.recorder = &MockSpendingServiceMockRecorder{mock}
+// NewMockSpendingServiceI creates a new mock instance.
+func NewMockSpendingServiceI(ctrl *gomock.Controller) *MockSpendingServiceI {
+	mock := &MockSpendingServiceI{ctrl: ctrl}
+	mock.recorder = &MockSpendingServiceIMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockSpendingService) EXPECT() *MockSpendingServiceMockRecorder {
+func (m *MockSpendingServiceI) EXPECT() *MockSpendingServiceIMockRecorder {
 	return m.recorder
 }
 
 // GetStatsBy mocks base method.
-func (m *MockSpendingService) GetStatsBy(arg0 context.Context, arg1, arg2 time.Time) (map[string]decimal.Decimal, string, error) {
+func (m *MockSpendingServiceI) GetStatsBy(arg0 context.Context, arg1, arg2 time.Time) (map[string]decimal.Decimal, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStatsBy", arg0, arg1, arg2)
 	ret0, _ := ret[0].(map[string]decimal.Decimal)
@@ -85,24 +85,24 @@ func (m *MockSpendingService) GetStatsBy(arg0 context.Context, arg1, arg2 time.T
 }
 
 // GetStatsBy indicates an expected call of GetStatsBy.
-func (mr *MockSpendingServiceMockRecorder) GetStatsBy(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceIMockRecorder) GetStatsBy(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingService)(nil).GetStatsBy), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatsBy", reflect.TypeOf((*MockSpendingServiceI)(nil).GetStatsBy), arg0, arg1, arg2)
 }
 
 // SaveTx mocks base method.
-func (m *MockSpendingService) SaveTx(arg0 model.Spending) (decimal.Decimal, error) {
+func (m *MockSpendingServiceI) SaveTx(arg0 context.Context, arg1 model.Spending) (decimal.Decimal, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveTx", arg0)
+	ret := m.ctrl.Call(m, "SaveTx", arg0, arg1)
 	ret0, _ := ret[0].(decimal.Decimal)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SaveTx indicates an expected call of SaveTx.
-func (mr *MockSpendingServiceMockRecorder) SaveTx(arg0 interface{}) *gomock.Call {
+func (mr *MockSpendingServiceIMockRecorder) SaveTx(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveTx", reflect.TypeOf((*MockSpendingService)(nil).SaveTx), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveTx", reflect.TypeOf((*MockSpendingServiceI)(nil).SaveTx), arg0, arg1)
 }
 
 // MockCurrencyService is a mock of CurrencyService interface.

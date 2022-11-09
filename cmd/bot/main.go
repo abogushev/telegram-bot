@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/cache"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/config"
 	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/observability"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/services"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/storage/pgdatabase/migrations"
 	"go.uber.org/zap"
@@ -48,7 +50,13 @@ func main() {
 
 	Log.Info("init db")
 
-	spendigStorage := pgdatabase.NewSpendingStorage(ctx, db)
+	redisClient, err := cache.NewRedisCache(cfg.CacheHost, cfg.CachePort)
+	if err != nil {
+		Log.Fatal("redis init failed:", zap.Error(err))
+	}
+	Log.Info("starting up redis client...")
+
+	spendigStorage := storage.NewCachedSpendingStorage(pgdatabase.NewSpendingStorage(ctx, db), redisClient)
 	Log.Info("init spendigStorage")
 	currencyStorage := pgdatabase.NewCurrencyStorage(ctx, db)
 	Log.Info("init currencyStorage")

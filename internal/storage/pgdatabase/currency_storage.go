@@ -2,10 +2,10 @@ package pgdatabase
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
