@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/api";
+import "google/protobuf/empty.proto";
+
+package report;
+
+service Report {
+  rpc Send(ReportResult) returns (google.protobuf.Empty) {}
+}
+
+message ReportResult {
+  int64 userId = 1;
+  string start = 2;
+  string end = 3;
+  map <string, double> data = 4;
+}

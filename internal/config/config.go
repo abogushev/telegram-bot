@@ -16,6 +16,8 @@ type Config struct {
 	UpdateCurrenciesInterval time.Duration `yaml:"update_currencies_interval"`
 	CacheHost                string        `yaml:"cache_host"`
 	CachePort                int           `yaml:"cache_port"`
+	TopicReport              string        `yaml:"topic_report"`
+	KafkaBrokers             []string      `yaml:"kafka_brokers"`
 }
 
 func New() (*Config, error) {

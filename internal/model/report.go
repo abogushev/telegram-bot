@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/time_util"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -31,4 +32,14 @@ func ToJSON(arr []Report) (string, error) {
 		return "", err
 	}
 	return string(marshal), nil
+}
+
+type ReportRequest struct {
+	UserId int64  `json:"userId"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
+}
+
+func NewReportRequest(userId int64, start, end time.Time) *ReportRequest {
+	return &ReportRequest{UserId: userId, Start: time_util.TimeToDate(start), End: time_util.TimeToDate(end)}
 }
