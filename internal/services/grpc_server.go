@@ -37,7 +37,7 @@ func (s *server) Send(ctx context.Context, result *api.ReportResult) (*emptypb.E
 		data[key] = decimal.NewFromFloat(val)
 	}
 
-	s.resultCh <- model.NewReport(start, end, data)
+	s.resultCh <- model.NewReport(result.UserId, start, end, data)
 	return &emptypb.Empty{}, nil
 }
 

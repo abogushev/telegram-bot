@@ -64,7 +64,7 @@ func (s *CachedSpendingStorage) refreshCache(ctx context.Context, start, end tim
 	if err != nil {
 		return nil, err
 	}
-	newReport := model.NewReport(start, end, result)
+	newReport := model.NewReport(0, start, end, result)
 	exists = append(exists, *newReport)
 
 	js, err := model.ToJSON(exists)

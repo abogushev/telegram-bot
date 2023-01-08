@@ -9,13 +9,14 @@ import (
 )
 
 type Report struct {
-	Start time.Time                  `json:"start"`
-	End   time.Time                  `json:"end"`
-	Data  map[string]decimal.Decimal `json:"data,omitempty"`
+	UserId int64                      `json:"userId"`
+	Start  time.Time                  `json:"start"`
+	End    time.Time                  `json:"end"`
+	Data   map[string]decimal.Decimal `json:"data,omitempty"`
 }
 
-func NewReport(start time.Time, end time.Time, data map[string]decimal.Decimal) *Report {
-	return &Report{Start: start, End: end, Data: data}
+func NewReport(userId int64, start time.Time, end time.Time, data map[string]decimal.Decimal) *Report {
+	return &Report{UserId: userId, Start: start, End: end, Data: data}
 }
 func FromJSON(data string) ([]Report, error) {
 	result := make([]Report, 0)

@@ -15,7 +15,7 @@ type ReportProducer struct {
 	producer *producer.Producer
 }
 
-func NewReportProducer(ctx context.Context, config config.Config) (*ReportProducer, error) {
+func NewReportProducer(ctx context.Context, config *config.Config) (*ReportProducer, error) {
 	p, err := producer.NewProducer(ctx, config.TopicReport, config.KafkaBrokers)
 	if err != nil {
 		return nil, err

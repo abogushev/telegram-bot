@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -87,7 +88,27 @@ func main() {
 	spendingService := services.NewSpendingService(spendigStorage, currencyService, stateService)
 	Log.Info("init spendingService")
 
-	handler := services.NewMessageHandlerService(tgClient, spendingService, currencyService, categoryService, stateService)
+	reportProducer, err := services.NewReportProducer(ctx, cfg)
+	if err != nil {
+		Log.Fatal("reportProducer init failed", zap.Error(err))
+	}
+	Log.Info("init reportProducer")
+	reportResultCh := make(chan *model.Report, 10)
+
+	if err := services.RunGRPCServer(ctx, reportResultCh); err != nil {
+		Log.Fatal("RunGRPCServer failed", zap.Error(err))
+	}
+	Log.Info("init RunGRPCServer")
+
+	handler := services.NewMessageHandlerService(
+		tgClient,
+		spendingService,
+		currencyService,
+		categoryService,
+		stateService,
+		reportProducer,
+		reportResultCh,
+	)
 	Log.Info("init msg handler")
 
 	go tgClient.ListenUpdates(handler, ctx)

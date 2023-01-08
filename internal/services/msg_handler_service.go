@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/shopspring/decimal"
+	. "gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/logger"
+	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
+	"go.uber.org/zap"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/shopspring/decimal"
-	"gitlab.ozon.dev/alex.bogushev/telegram-bot/internal/model"
 )
 
 type MessageSender interface {
@@ -41,6 +42,7 @@ type MessageHandlerService struct {
 	currencyService CurrencyService
 	categoryService CategoryService
 	stateService    StateService
+	reportProducer  *ReportProducer
 }
 
 var helpMsg = `
@@ -59,15 +61,19 @@ func NewMessageHandlerService(
 	spendingService SpendingServiceI,
 	currencyService CurrencyService,
 	categoryService CategoryService,
-	stateService StateService) *MessageHandlerService {
-
-	return &MessageHandlerService{
+	stateService StateService,
+	reportProducer *ReportProducer,
+	reportResultCh <-chan *model.Report) *MessageHandlerService {
+	s := &MessageHandlerService{
 		tgClient:        tgClient,
 		spendingService: spendingService,
 		currencyService: currencyService,
 		categoryService: categoryService,
 		stateService:    stateService,
+		reportProducer:  reportProducer,
 	}
+	go s.reportResultListen(reportResultCh)
+	return s
 }
 
 func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Context) error {
@@ -95,7 +101,14 @@ func (s *MessageHandlerService) HandleMsg(msg *model.Message, ctx context.Contex
 		resp = s.handleCategories()
 		span.SetOperationName("msg_handler: handle cmd `/categories`")
 	case "/report":
-		resp = handleF(span, spanCtx, tokens, 2, s.handleReport)
+		//resp = handleF(span, spanCtx, tokens, 2, s.handleReport)
+		resp = handleF(span, spanCtx, tokens, 2, func(ctx context.Context, i []string) (string, error) {
+			r, err := s.handleReportAsync(spanCtx, msg.UserID, tokens)
+			if err != nil {
+				return "", err
+			}
+			return r, nil
+		})
 		span.SetOperationName("msg_handler: handle cmd `/report`")
 	case "/currencies":
 		resp = s.handleCurrencies()
@@ -182,7 +195,7 @@ func (s *MessageHandlerService) handleAdd(ctx context.Context, tokens []string) 
 	return fmt.Sprintf("added, current balance: %v", balanceAfter), nil
 }
 
-func (s *MessageHandlerService) handleReport(spanCtx context.Context, strs []string) (string, error) {
+func parseReportReq(spanCtx context.Context, strs []string) (time.Time, time.Time, error) {
 	endAt := time.Now().Truncate(24 * time.Hour)
 	var startAt time.Time
 
@@ -194,13 +207,39 @@ func (s *MessageHandlerService) handleReport(spanCtx context.Context, strs []str
 	case "y":
 		startAt = endAt.AddDate(-1, 0, 0)
 	default:
-		return "", errWrongFormat
+		return time.Time{}, time.Time{}, errWrongFormat
+	}
+	return startAt, endAt, nil
+}
+func (s *MessageHandlerService) handleReport(spanCtx context.Context, strs []string) (string, error) {
+	startAt, endAt, err := parseReportReq(spanCtx, strs)
+	if err != nil {
+		return "", err
 	}
 
 	if data, c, err := s.spendingService.GetStatsBy(spanCtx, startAt, endAt); err != nil {
 		return "", err
 	} else {
 		return formatStats(spanCtx, startAt, endAt, data, c), nil
+	}
+}
+
+func (s *MessageHandlerService) handleReportAsync(spanCtx context.Context, userId int64, strs []string) (string, error) {
+	startAt, endAt, err := parseReportReq(spanCtx, strs)
+	if err != nil {
+		return "", err
+	}
+	if err := s.reportProducer.Send(model.NewReportRequest(userId, startAt, endAt)); err != nil {
+		return "", err
+	}
+	return "calculating report...", err
+}
+
+func (s *MessageHandlerService) reportResultListen(reportResultCh <-chan *model.Report) {
+	for result := range reportResultCh {
+		if err := s.tgClient.SendMessage(formatStats(context.Background(), result.Start, result.End, result.Data, ""), result.UserId); err != nil {
+			Log.Error("failed to send report request", zap.Error(err))
+		}
 	}
 }
 

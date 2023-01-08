@@ -2,9 +2,9 @@ package pgdatabase
 
 import (
 	"context"
-	"sync"
-
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"sync"
 )
 
 var once = sync.Once{}
